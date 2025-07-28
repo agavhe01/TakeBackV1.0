@@ -60,12 +60,8 @@ security = HTTPBearer()
 class UserSignup(BaseModel):
     first_name: str
     last_name: str
-    date_of_birth: str  # Will be converted to DATE
-    address: str
-    zip_code: str
-    ssn: str
-    phone: str
     email: str
+    phone: str
     password: str
     organization_legal_name: str
     orginazation_ein_number: str
@@ -78,9 +74,6 @@ class UserResponse(BaseModel):
     id: str
     first_name: str
     last_name: str
-    date_of_birth: str
-    address: str
-    zip_code: str
     phone: str
     email: str
     organization_legal_name: str
@@ -212,15 +205,11 @@ async def signup(user_data: UserSignup):
         if auth_response.user:
             print(f"DEBUG: User created successfully in Supabase Auth with ID: {auth_response.user.id}")
             
-            # Insert into public.accounts table with new schema
+            # Insert into public.accounts table with simplified schema
             account_data = {
                 "id": auth_response.user.id,
                 "first_name": user_data.first_name,
                 "last_name": user_data.last_name,
-                "date_of_birth": user_data.date_of_birth,
-                "address": user_data.address,
-                "zip_code": user_data.zip_code,
-                "ssn": user_data.ssn,
                 "phone": user_data.phone,
                 "email": user_data.email,
                 "organization_legal_name": user_data.organization_legal_name,
@@ -268,6 +257,7 @@ async def signup(user_data: UserSignup):
 async def login(user_data: UserLogin):
     print(f"=== LOGIN REQUEST ===")
     print(f"DEBUG: Received login request for email: {user_data.email}")
+    print(f"DEBUG: User data: {user_data.dict()}")
     
     if not supabase:
         print("DEBUG: Supabase not configured - returning error")
@@ -276,32 +266,55 @@ async def login(user_data: UserLogin):
     try:
         print("DEBUG: Attempting to authenticate user with Supabase...")
         
+        print(f"DEBUG: Attempting Supabase authentication with email: {user_data.email}")
         auth_response = supabase.auth.sign_in_with_password({
             "email": user_data.email,
             "password": user_data.password
         })
         
+        print(f"DEBUG: Supabase auth response type: {type(auth_response)}")
         print(f"DEBUG: Supabase auth response: {auth_response}")
+        print(f"DEBUG: Auth response has user: {hasattr(auth_response, 'user')}")
+        if hasattr(auth_response, 'user'):
+            print(f"DEBUG: User object: {auth_response.user}")
+            print(f"DEBUG: User ID: {auth_response.user.id if auth_response.user else 'None'}")
         
         if auth_response.user:
             print(f"DEBUG: User authenticated successfully: {auth_response.user.id}")
             
-            token_data = {
-                "sub": auth_response.user.id,
-                "email": user_data.email
-            }
-            access_token = create_access_token(token_data)
+            # Get user profile from database
+            print("DEBUG: Fetching user profile from database...")
+            profile_response = supabase.table("accounts").select("*").eq("id", auth_response.user.id).execute()
             
-            print(f"DEBUG: Login successful for user: {user_data.email}")
+            print(f"DEBUG: Profile response: {profile_response}")
             
-            return {
-                "success": True,
-                "access_token": access_token,
-                "user": {
-                    "id": auth_response.user.id,
+            if profile_response.data:
+                user_profile = profile_response.data[0]
+                print(f"DEBUG: User profile found: {user_profile}")
+                
+                token_data = {
+                    "sub": auth_response.user.id,
                     "email": user_data.email
                 }
-            }
+                access_token = create_access_token(token_data)
+                
+                print(f"DEBUG: Login successful for user: {user_data.email}")
+                print(f"DEBUG: Returning user data: {user_profile}")
+                
+                return {
+                    "success": True,
+                    "access_token": access_token,
+                    "user": {
+                        "id": auth_response.user.id,
+                        "email": user_data.email,
+                        "first_name": user_profile.get("first_name"),
+                        "last_name": user_profile.get("last_name"),
+                        "organization_legal_name": user_profile.get("organization_legal_name")
+                    }
+                }
+            else:
+                print("DEBUG: User profile not found in database")
+                raise HTTPException(status_code=404, detail="User profile not found")
         else:
             print("DEBUG: Authentication failed - invalid credentials")
             raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -309,8 +322,17 @@ async def login(user_data: UserLogin):
     except Exception as e:
         print(f"DEBUG: Login error: {str(e)}")
         print(f"DEBUG: Error type: {type(e)}")
+        print(f"DEBUG: Error details: {getattr(e, 'detail', 'No detail')}")
+        print(f"DEBUG: Error message: {getattr(e, 'message', 'No message')}")
         traceback.print_exc()
-        raise HTTPException(status_code=401, detail=str(e))
+        
+        # Provide more specific error messages
+        if "Invalid login credentials" in str(e):
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        elif "User not found" in str(e):
+            raise HTTPException(status_code=404, detail="User not found. Please sign up first.")
+        else:
+            raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
 @app.get("/api/user/profile")
 async def get_profile(token: str = Depends(security)):
@@ -584,6 +606,41 @@ async def debug_config():
         "jwt_secret_configured": JWT_SECRET != "placeholder_secret",
         "environment": "development"
     }
+
+@app.get("/debug/user/{email}")
+async def debug_user(email: str):
+    """Debug endpoint to check if a user exists in the database"""
+    print(f"=== DEBUG USER CHECK ===")
+    print(f"DEBUG: Checking for user with email: {email}")
+    
+    if not supabase:
+        return {"error": "Supabase not configured"}
+    
+    try:
+        # Check in accounts table
+        response = supabase.table("accounts").select("*").eq("email", email).execute()
+        print(f"DEBUG: Database response: {response}")
+        
+        if response.data:
+            user_data = response.data[0]
+            print(f"DEBUG: User found: {user_data}")
+            return {
+                "exists": True,
+                "user_data": user_data,
+                "message": "User found in database"
+            }
+        else:
+            print("DEBUG: User not found in database")
+            return {
+                "exists": False,
+                "message": "User not found in database"
+            }
+    except Exception as e:
+        print(f"DEBUG: Error checking user: {str(e)}")
+        return {
+            "error": str(e),
+            "message": "Error checking user"
+        }
 
 if __name__ == "__main__":
     try:

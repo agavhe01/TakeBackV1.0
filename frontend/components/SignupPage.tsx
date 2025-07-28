@@ -9,12 +9,8 @@ import FeatureCard from './FeatureCard'
 interface SignupFormData {
     first_name: string
     last_name: string
-    date_of_birth: string
-    address: string
-    zip_code: string
-    ssn: string
-    phone: string
     email: string
+    phone: string
     password: string
     confirm_password: string
     organization_legal_name: string
@@ -41,6 +37,7 @@ export default function SignupPage() {
     const password = watch('password')
 
     const handleSignupSuccess = () => {
+        console.log('Signup successful, redirecting to onboarding...')
         router.push('/onboarding')
     }
 
@@ -72,9 +69,12 @@ export default function SignupPage() {
             console.log('Response result:', result)
 
             if (response.ok) {
-                // Store token in localStorage
+                // Store token in localStorage (this automatically logs in the user)
                 localStorage.setItem('access_token', result.access_token)
                 localStorage.setItem('user', JSON.stringify(result.user))
+
+                // The user is now automatically logged in after signup
+                console.log('User automatically logged in after signup')
                 handleSignupSuccess()
             } else {
                 setError(result.detail || 'Signup failed')
@@ -103,7 +103,11 @@ export default function SignupPage() {
                             </h1>
                             <p className="text-gray-600">
                                 Already have an account?{' '}
-                                <a href="#" className="text-primary-500 hover:text-primary-600 font-medium">
+                                <a
+                                    href="/signin"
+                                    className="text-primary-500 hover:text-primary-600 font-medium"
+                                    onClick={() => console.log('Signin link clicked, navigating to /signin')}
+                                >
                                     Sign in
                                 </a>
                             </p>
@@ -184,84 +188,7 @@ export default function SignupPage() {
                                 )}
                             </div>
 
-                            {/* Date of Birth */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Date of Birth *
-                                </label>
-                                <input
-                                    type="date"
-                                    className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.date_of_birth ? 'border-red-300' : 'border-gray-300'}`}
-                                    {...register('date_of_birth', {
-                                        required: 'Date of birth is required'
-                                    })}
-                                />
-                                {errors.date_of_birth && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.date_of_birth.message}</p>
-                                )}
-                            </div>
 
-                            {/* Address */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Address *
-                                </label>
-                                <input
-                                    type="text"
-                                    className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.address ? 'border-red-300' : 'border-gray-300'}`}
-                                    placeholder="123 Main St, City, State"
-                                    {...register('address', {
-                                        required: 'Address is required'
-                                    })}
-                                />
-                                {errors.address && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.address.message}</p>
-                                )}
-                            </div>
-
-                            {/* Zip Code */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Zip Code *
-                                </label>
-                                <input
-                                    type="text"
-                                    className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.zip_code ? 'border-red-300' : 'border-gray-300'}`}
-                                    placeholder="12345"
-                                    {...register('zip_code', {
-                                        required: 'Zip code is required',
-                                        pattern: {
-                                            value: /^\d{5}(-\d{4})?$/,
-                                            message: 'Please enter a valid zip code'
-                                        }
-                                    })}
-                                />
-                                {errors.zip_code && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.zip_code.message}</p>
-                                )}
-                            </div>
-
-                            {/* SSN */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Social Security Number *
-                                </label>
-                                <input
-                                    type="text"
-                                    className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.ssn ? 'border-red-300' : 'border-gray-300'}`}
-                                    placeholder="123-45-6789"
-                                    {...register('ssn', {
-                                        required: 'SSN is required',
-                                        pattern: {
-                                            value: /^\d{3}-\d{2}-\d{4}$/,
-                                            message: 'Please enter SSN in format XXX-XX-XXXX'
-                                        }
-                                    })}
-                                />
-                                {errors.ssn && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.ssn.message}</p>
-                                )}
-                            </div>
 
                             {/* Phone */}
                             <div>
@@ -424,7 +351,7 @@ export default function SignupPage() {
                                 {isLoading && (
                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                 )}
-                                Sign Up and Start Onboarding
+                                Sign Up & Start Onboarding
                             </button>
                         </form>
                     </div>
