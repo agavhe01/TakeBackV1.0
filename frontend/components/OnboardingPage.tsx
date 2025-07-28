@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle, ArrowRight, Users, CreditCard, Settings, BarChart3 } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { CheckCircle, ArrowRight, ArrowLeft, Clock, User, Building, Shield } from 'lucide-react'
 
 interface User {
     id: string
@@ -10,6 +11,20 @@ interface User {
     first_name: string
     last_name: string
     organization_legal_name: string
+    orginazation_ein_number: string
+    phone?: string
+}
+
+interface PersonalInfoForm {
+    first_name: string
+    last_name: string
+    date_of_birth: string
+    phone: string
+    organization_legal_name: string
+    organization_ein: string
+    ssn: string
+    address: string
+    zip_code: string
 }
 
 export default function OnboardingPage() {
@@ -18,6 +33,18 @@ export default function OnboardingPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [currentStep, setCurrentStep] = useState(1)
     const [error, setError] = useState('')
+    const [isVerifying, setIsVerifying] = useState(false)
+    const [verificationComplete, setVerificationComplete] = useState(false)
+    const [isSaving, setIsSaving] = useState(false)
+    const [saveSuccess, setSaveSuccess] = useState(false)
+
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+        watch,
+        setValue
+    } = useForm<PersonalInfoForm>()
 
     useEffect(() => {
         console.log('=== ONBOARDING PAGE LOADED ===')
@@ -41,6 +68,24 @@ export default function OnboardingPage() {
                 const parsedUser = JSON.parse(userData)
                 console.log('User data:', parsedUser)
                 setUser(parsedUser)
+
+                // Pre-fill form with existing data
+                console.log('User data from localStorage:', parsedUser)
+                setValue('first_name', parsedUser.first_name || '')
+                setValue('last_name', parsedUser.last_name || '')
+                setValue('organization_legal_name', parsedUser.organization_legal_name || '')
+                setValue('phone', parsedUser.phone || '')
+                setValue('organization_ein', parsedUser.orginazation_ein_number || '') // Pre-fill EIN
+                setValue('ssn', '') // Ensure SSN is blank
+                // Log the form state after pre-filling
+                setTimeout(() => {
+                    console.log('Form state after pre-fill:', watch())
+                }, 100);
+                console.log('Pre-filled form data:')
+                console.log('- organization_ein:', parsedUser.orginazation_ein_number || '')
+                console.log('- ssn: (blank)')
+                console.log('- phone:', parsedUser.phone || '')
+                console.log('- date_of_birth: (not set yet)')
 
                 // Verify token is still valid
                 console.log('Verifying token with backend...')
@@ -73,15 +118,109 @@ export default function OnboardingPage() {
         }
 
         checkAuth()
-    }, [router])
+    }, [router, setValue])
 
-    const handleCompleteOnboarding = () => {
-        console.log('Onboarding completed, redirecting to dashboard...')
-        router.push('/dashboard')
+    const handleNextStep = async () => {
+        if (currentStep < 3) {
+            // Save current step data before proceeding
+            await saveCurrentStepData()
+            setCurrentStep(currentStep + 1)
+        }
+    }
+
+    const handlePreviousStep = () => {
+        if (currentStep > 1) {
+            setCurrentStep(currentStep - 1)
+        }
+    }
+
+    const saveCurrentStepData = async () => {
+        console.log(`Saving data for step ${currentStep}...`)
+        setIsSaving(true)
+
+        try {
+            const formData = watch()
+            console.log('Current form data:', formData)
+
+            const token = localStorage.getItem('access_token')
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+            // Prepare data based on current step
+            let updateData = {}
+
+            if (currentStep === 1) {
+                // Step 1: Personal Information
+                updateData = {
+                    first_name: formData.first_name,
+                    last_name: formData.last_name,
+                    date_of_birth: formData.date_of_birth,
+                    phone: formData.phone
+                }
+            } else if (currentStep === 2) {
+                // Step 2: Organization & Address
+                updateData = {
+                    organization_legal_name: formData.organization_legal_name,
+                    orginazation_ein_number: formData.organization_ein,
+                    ssn: formData.ssn,
+                    address: formData.address,
+                    zip_code: formData.zip_code
+                }
+            }
+
+            console.log(`Sending step ${currentStep} data:`, updateData)
+
+            const response = await fetch(`${apiUrl}/api/user/update-profile`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(updateData)
+            })
+
+            if (response.ok) {
+                console.log(`Step ${currentStep} data saved successfully`)
+                setSaveSuccess(true)
+                // Clear success message after 2 seconds
+                setTimeout(() => setSaveSuccess(false), 2000)
+            } else {
+                const errorData = await response.json()
+                console.error(`Failed to save step ${currentStep} data:`, errorData)
+                setError(`Failed to save step ${currentStep} data: ${errorData.detail}`)
+            }
+        } catch (err) {
+            console.error(`Error saving step ${currentStep} data:`, err)
+            setError(`Network error saving step ${currentStep} data. Please try again.`)
+        } finally {
+            setIsSaving(false)
+        }
     }
 
     const handleSkipOnboarding = () => {
         console.log('Onboarding skipped, redirecting to dashboard...')
+        router.push('/dashboard')
+    }
+
+    const handleVerifyDetails = async () => {
+        setIsVerifying(true)
+
+        // Simulate verification process
+        setTimeout(() => {
+            setIsVerifying(false)
+            setVerificationComplete(true)
+
+            // After verification, update user profile and redirect to dashboard
+            setTimeout(() => {
+                handleCompleteOnboarding()
+            }, 1000)
+        }, 5000)
+    }
+
+    const handleCompleteOnboarding = async () => {
+        console.log('Onboarding completed, redirecting to dashboard...')
+
+        // Data has already been saved in previous steps
+        // Just redirect to dashboard
         router.push('/dashboard')
     }
 
@@ -115,136 +254,240 @@ export default function OnboardingPage() {
     const steps = [
         {
             id: 1,
-            title: "Welcome to TakeBack",
-            description: "Let's get your organization set up for success",
-            icon: CheckCircle,
+            title: "Personal Information",
+            description: "Verify your personal details",
+            icon: User,
             content: (
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                        Welcome, {user?.first_name}!
-                    </h2>
-                    <p className="text-gray-600 mb-6">
-                        We're excited to help {user?.organization_legal_name} manage spending with confidence.
-                    </p>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                        <p className="text-blue-800 text-sm">
-                            <strong>Your account is ready!</strong> You can start using TakeBack immediately,
-                            or complete this quick setup to get the most out of your experience.
-                        </p>
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Legal First Name *
+                            </label>
+                            <input
+                                type="text"
+                                className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.first_name ? 'border-red-300' : 'border-gray-300'
+                                    }`}
+                                {...register('first_name', {
+                                    required: 'First name is required'
+                                })}
+                            />
+                            {errors.first_name && (
+                                <p className="mt-1 text-sm text-red-600">{errors.first_name.message}</p>
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Legal Last Name *
+                            </label>
+                            <input
+                                type="text"
+                                className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.last_name ? 'border-red-300' : 'border-gray-300'
+                                    }`}
+                                {...register('last_name', {
+                                    required: 'Last name is required'
+                                })}
+                            />
+                            {errors.last_name && (
+                                <p className="mt-1 text-sm text-red-600">{errors.last_name.message}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Date of Birth *
+                        </label>
+                        <input
+                            type="date"
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.date_of_birth ? 'border-red-300' : 'border-gray-300'
+                                }`}
+                            {...register('date_of_birth', {
+                                required: 'Date of birth is required'
+                            })}
+                        />
+                        {errors.date_of_birth && (
+                            <p className="mt-1 text-sm text-red-600">{errors.date_of_birth.message}</p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Mobile Phone Number *
+                        </label>
+                        <input
+                            type="tel"
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.phone ? 'border-red-300' : 'border-gray-300'
+                                }`}
+                            placeholder="(123) 456-7890"
+                            {...register('phone', {
+                                required: 'Phone number is required'
+                            })}
+                        />
+                        <p className="mt-1 text-sm text-gray-500">We will never share your number.</p>
+                        {errors.phone && (
+                            <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
+                        )}
                     </div>
                 </div>
             )
         },
         {
             id: 2,
-            title: "Set Up Your Team",
-            description: "Add employees who will use company cards",
-            icon: Users,
+            title: "Organization & Address",
+            description: "Complete your business and address information",
+            icon: Building,
             content: (
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Setup</h3>
-                    <div className="space-y-4">
-                        <div className="bg-gray-50 rounded-lg p-4">
-                            <p className="text-sm text-gray-600 mb-2">
-                                You can add team members later from your dashboard. For now, let's continue with the setup.
-                            </p>
-                        </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            <span>Account created successfully</span>
-                        </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            <span>Organization profile set up</span>
-                        </div>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Organization Legal Name *
+                        </label>
+                        <input
+                            type="text"
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.organization_legal_name ? 'border-red-300' : 'border-gray-300'
+                                }`}
+                            {...register('organization_legal_name', {
+                                required: 'Organization name is required'
+                            })}
+                        />
+                        {errors.organization_legal_name && (
+                            <p className="mt-1 text-sm text-red-600">{errors.organization_legal_name.message}</p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Organization EIN *
+                        </label>
+                        <input
+                            type="text"
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.organization_ein ? 'border-red-300' : 'border-gray-300'
+                                }`}
+                            placeholder="12-3456789"
+                            {...register('organization_ein', {
+                                required: 'EIN is required',
+                                pattern: {
+                                    value: /^\d{2}-\d{7}$/,
+                                    message: 'Please enter EIN in format XX-XXXXXXX'
+                                }
+                            })}
+                        />
+                        {errors.organization_ein && (
+                            <p className="mt-1 text-sm text-red-600">{errors.organization_ein.message}</p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Social Security Number *
+                        </label>
+                        <input
+                            type="text"
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.ssn ? 'border-red-300' : 'border-gray-300'
+                                }`}
+                            placeholder="123-45-6789"
+                            {...register('ssn', {
+                                required: 'SSN is required',
+                                pattern: {
+                                    value: /^\d{3}-\d{2}-\d{4}$/,
+                                    message: 'Please enter SSN in format XXX-XX-XXXX'
+                                }
+                            })}
+                        />
+                        <p className="mt-1 text-sm text-gray-500">We won't check or impact your credit score.</p>
+                        {errors.ssn && (
+                            <p className="mt-1 text-sm text-red-600">{errors.ssn.message}</p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Full Address (No PO boxes) *
+                        </label>
+                        <textarea
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.address ? 'border-red-300' : 'border-gray-300'
+                                }`}
+                            rows={3}
+                            placeholder="Enter your complete address including street, city, state, etc."
+                            {...register('address', {
+                                required: 'Address is required'
+                            })}
+                        />
+                        {errors.address && (
+                            <p className="mt-1 text-sm text-red-600">{errors.address.message}</p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Zip Code *
+                        </label>
+                        <input
+                            type="text"
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.zip_code ? 'border-red-300' : 'border-gray-300'
+                                }`}
+                            placeholder="12345"
+                            {...register('zip_code', {
+                                required: 'Zip code is required'
+                            })}
+                        />
+                        {errors.zip_code && (
+                            <p className="mt-1 text-sm text-red-600">{errors.zip_code.message}</p>
+                        )}
                     </div>
                 </div>
             )
         },
         {
             id: 3,
-            title: "Configure Budgets",
-            description: "Set spending limits for different departments",
-            icon: BarChart3,
+            title: "Verify Details",
+            description: "We'll verify your information",
+            icon: Shield,
             content: (
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Budget Configuration</h3>
-                    <div className="space-y-4">
-                        <div className="bg-gray-50 rounded-lg p-4">
-                            <p className="text-sm text-gray-600 mb-2">
-                                Create budgets for different departments or projects. You can set monthly, weekly, or quarterly limits.
-                            </p>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="border border-gray-200 rounded-lg p-4">
-                                <h4 className="font-medium text-gray-900 mb-2">Marketing Budget</h4>
-                                <p className="text-sm text-gray-600">Monthly limit: $5,000</p>
-                            </div>
-                            <div className="border border-gray-200 rounded-lg p-4">
-                                <h4 className="font-medium text-gray-900 mb-2">Operations Budget</h4>
-                                <p className="text-sm text-gray-600">Monthly limit: $3,000</p>
-                            </div>
+                <div className="text-center space-y-6">
+                    <div className="flex items-center justify-center mb-6">
+                        <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
+                            <Clock className="h-8 w-8 text-primary-600" />
                         </div>
                     </div>
-                </div>
-            )
-        },
-        {
-            id: 4,
-            title: "Issue Company Cards",
-            description: "Create virtual or physical cards for your team",
-            icon: CreditCard,
-            content: (
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Card Management</h3>
-                    <div className="space-y-4">
-                        <div className="bg-gray-50 rounded-lg p-4">
-                            <p className="text-sm text-gray-600 mb-2">
-                                Issue cards to team members with specific budget limits and spending controls.
-                            </p>
+
+                    <h3 className="text-xl font-semibold text-gray-900">
+                        Verify your personal information
+                    </h3>
+
+                    <p className="text-gray-600 max-w-md mx-auto">
+                        You must be a person who can control or direct the business.
+                    </p>
+
+                    {isVerifying ? (
+                        <div className="space-y-4">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
+                            <p className="text-gray-600">Verifying your information...</p>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="border border-gray-200 rounded-lg p-4">
-                                <h4 className="font-medium text-gray-900 mb-2">Virtual Cards</h4>
-                                <p className="text-sm text-gray-600">Instant issuance, perfect for online purchases</p>
+                    ) : verificationComplete ? (
+                        <div className="space-y-4">
+                            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                                <CheckCircle className="h-8 w-8 text-green-600" />
                             </div>
-                            <div className="border border-gray-200 rounded-lg p-4">
-                                <h4 className="font-medium text-gray-900 mb-2">Physical Cards</h4>
-                                <p className="text-sm text-gray-600">Traditional cards for in-person transactions</p>
-                            </div>
+                            <p className="text-green-600 font-medium">Verification complete!</p>
                         </div>
-                    </div>
-                </div>
-            )
-        },
-        {
-            id: 5,
-            title: "Set Up Policies",
-            description: "Configure spending rules and approval workflows",
-            icon: Settings,
-            content: (
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Policy Configuration</h3>
-                    <div className="space-y-4">
-                        <div className="bg-gray-50 rounded-lg p-4">
-                            <p className="text-sm text-gray-600 mb-2">
-                                Set up spending policies to ensure compliance and control costs.
-                            </p>
-                        </div>
-                        <div className="space-y-3">
-                            <div className="flex items-center space-x-3">
-                                <CheckCircle className="h-5 w-5 text-green-500" />
-                                <span className="text-sm text-gray-700">Require receipts for purchases over $25</span>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                                <CheckCircle className="h-5 w-5 text-green-500" />
-                                <span className="text-sm text-gray-700">Automatic categorization of transactions</span>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                                <CheckCircle className="h-5 w-5 text-green-500" />
-                                <span className="text-sm text-gray-700">Real-time spending alerts</span>
-                            </div>
-                        </div>
+                    ) : (
+                        <button
+                            onClick={handleVerifyDetails}
+                            className="bg-primary-500 hover:bg-primary-600 text-white px-8 py-3 rounded-md font-medium"
+                        >
+                            Verify Details
+                        </button>
+                    )}
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                        <p className="text-blue-800 text-sm">
+                            To help the government fight the funding of terrorism and money laundering activities,
+                            federal law requires us to obtain, verify, and record information that identifies each
+                            individual or entity that opens an account.
+                        </p>
                     </div>
                 </div>
             )
@@ -330,44 +573,50 @@ export default function OnboardingPage() {
 
                     {/* Step Content */}
                     <div className="p-6">
+                        {saveSuccess && (
+                            <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
+                                ✓ Step {currentStep} data saved successfully
+                            </div>
+                        )}
                         {currentStepData.content}
                     </div>
 
                     {/* Navigation */}
-                    <div className="border-t border-gray-200 p-6">
-                        <div className="flex justify-between">
-                            <button
-                                onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
-                                disabled={currentStep === 1}
-                                className={`px-4 py-2 text-sm font-medium rounded-md ${currentStep === 1
-                                    ? 'text-gray-400 cursor-not-allowed'
-                                    : 'text-gray-700 hover:text-gray-900'
-                                    }`}
-                            >
-                                Previous
-                            </button>
+                    {currentStep !== 3 && (
+                        <div className="border-t border-gray-200 p-6">
+                            <div className="flex justify-between">
+                                <button
+                                    onClick={handlePreviousStep}
+                                    disabled={currentStep === 1}
+                                    className={`px-4 py-2 text-sm font-medium rounded-md ${currentStep === 1
+                                        ? 'text-gray-400 cursor-not-allowed'
+                                        : 'text-gray-700 hover:text-gray-900'
+                                        }`}
+                                >
+                                    <ArrowLeft className="h-4 w-4 inline mr-2" />
+                                    Previous
+                                </button>
 
-                            <div className="flex space-x-3">
-                                {currentStep < steps.length ? (
-                                    <button
-                                        onClick={() => setCurrentStep(currentStep + 1)}
-                                        className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 text-white px-6 py-2 rounded-md font-medium"
-                                    >
-                                        <span>Next</span>
-                                        <ArrowRight className="h-4 w-4" />
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={handleCompleteOnboarding}
-                                        className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 text-white px-6 py-2 rounded-md font-medium"
-                                    >
-                                        <span>Complete Setup</span>
-                                        <ArrowRight className="h-4 w-4" />
-                                    </button>
-                                )}
+                                <button
+                                    onClick={handleNextStep}
+                                    disabled={isSaving}
+                                    className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 text-white px-6 py-2 rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                            <span>Saving...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>Next</span>
+                                            <ArrowRight className="h-4 w-4" />
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </main>
         </div>

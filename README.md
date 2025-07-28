@@ -194,9 +194,7 @@ CREATE POLICY "Users can insert own account" ON public.accounts
 This project is licensed under the MIT License.
 
 
-SQL:
-
--- Enable UUID generation (required for gen_random_uuid)
+SQL:-- Enable UUID generation (required for gen_random_uuid)
 create extension if not exists "pgcrypto";
 
 -- Drop tables if re-running
@@ -211,10 +209,10 @@ CREATE TABLE accounts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
-    date_of_birth DATE NOT NULL,
-    address TEXT NOT NULL,           -- Full address as a single field
-    zip_code TEXT NOT NULL,
-    ssn TEXT NOT NULL,               -- For now, plaintext; should encrypt/mask in prod
+    date_of_birth DATE,
+    address TEXT ,           -- Full address as a single field
+    zip_code TEXT,
+    ssn TEXT,               -- For now, plaintext; should encrypt/mask in prod
     phone TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     organization_legal_name TEXT NOT NULL,
@@ -268,3 +266,5 @@ CREATE TABLE policies (
     memo_prompt TEXT
 );
 
+
+select * from accounts;

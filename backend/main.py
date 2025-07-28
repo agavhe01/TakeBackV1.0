@@ -78,6 +78,10 @@ class UserResponse(BaseModel):
     email: str
     organization_legal_name: str
     orginazation_ein_number: str
+    date_of_birth: Optional[str] = None
+    ssn: Optional[str] = None
+    address: Optional[str] = None
+    zip_code: Optional[str] = None
     created_at: str
 
 # New models for the updated schema
@@ -240,7 +244,9 @@ async def signup(user_data: UserSignup):
                     "email": user_data.email,
                     "first_name": user_data.first_name,
                     "last_name": user_data.last_name,
-                    "organization_legal_name": user_data.organization_legal_name
+                    "phone": user_data.phone,
+                    "organization_legal_name": user_data.organization_legal_name,
+                    "orginazation_ein_number": user_data.orginazation_ein_number
                 }
             }
         else:
@@ -363,6 +369,78 @@ async def get_profile(token: str = Depends(security)):
             
     except Exception as e:
         print(f"DEBUG: Profile fetch error: {str(e)}")
+        print(f"DEBUG: Error type: {type(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Profile update endpoint
+class UserProfileUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    phone: Optional[str] = None
+    organization_legal_name: Optional[str] = None
+    orginazation_ein_number: Optional[str] = None
+    ssn: Optional[str] = None
+    address: Optional[str] = None
+    zip_code: Optional[str] = None
+
+@app.put("/api/user/update-profile")
+async def update_profile(profile_data: UserProfileUpdate, token: str = Depends(security)):
+    print(f"=== UPDATE USER PROFILE ===")
+    print(f"DEBUG: Received profile update request")
+    
+    if not supabase:
+        print("DEBUG: Supabase not configured - returning error")
+        raise HTTPException(status_code=500, detail="Supabase not configured. Please set SUPABASE_URL and SUPABASE_KEY environment variables.")
+    
+    try:
+        payload = verify_token(token.credentials)
+        user_id = payload.get("sub")
+        print(f"DEBUG: Token verified, user ID: {user_id}")
+        
+        # Update user profile in public.accounts table
+        update_data = {}
+        
+        # Only include fields that are provided (not None)
+        if profile_data.first_name is not None:
+            update_data["first_name"] = profile_data.first_name
+        if profile_data.last_name is not None:
+            update_data["last_name"] = profile_data.last_name
+        if profile_data.date_of_birth is not None:
+            update_data["date_of_birth"] = profile_data.date_of_birth
+        if profile_data.phone is not None:
+            update_data["phone"] = profile_data.phone
+        if profile_data.organization_legal_name is not None:
+            update_data["organization_legal_name"] = profile_data.organization_legal_name
+        if profile_data.orginazation_ein_number is not None:
+            update_data["orginazation_ein_number"] = profile_data.orginazation_ein_number
+        if profile_data.ssn is not None:
+            update_data["ssn"] = profile_data.ssn
+        if profile_data.address is not None:
+            update_data["address"] = profile_data.address
+        if profile_data.zip_code is not None:
+            update_data["zip_code"] = profile_data.zip_code
+        
+        print(f"DEBUG: Updating profile data: {update_data}")
+        
+        response = supabase.table("accounts").update(update_data).eq("id", user_id).execute()
+        
+        print(f"DEBUG: Update response: {response}")
+        
+        if response.data:
+            print(f"DEBUG: Profile updated successfully")
+            return {
+                "success": True,
+                "message": "Profile updated successfully",
+                "user": response.data[0]
+            }
+        else:
+            print("DEBUG: Failed to update profile")
+            raise HTTPException(status_code=400, detail="Failed to update profile")
+            
+    except Exception as e:
+        print(f"DEBUG: Profile update error: {str(e)}")
         print(f"DEBUG: Error type: {type(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
