@@ -498,6 +498,33 @@ async def get_budgets(token: str = Depends(security)):
         raise HTTPException(status_code=400, detail=str(e))
 
 # Card endpoints
+@app.get("/api/cards", response_model=list[CardResponse])
+async def get_cards(token: str = Depends(security)):
+    print(f"=== GET CARDS ===")
+    print(f"DEBUG: Received get cards request")
+    
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase not configured.")
+    
+    try:
+        payload = verify_token(token.credentials)
+        user_id = payload.get("sub")
+        print(f"DEBUG: Token verified, user ID: {user_id}")
+        
+        # Get all cards for the user
+        response = supabase.table("cards").select("*").eq("account_id", user_id).execute()
+        
+        print(f"DEBUG: Cards response: {response}")
+        
+        if response.data:
+            return [CardResponse(**card) for card in response.data]
+        else:
+            return []
+            
+    except Exception as e:
+        print(f"DEBUG: Get cards error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.post("/api/cards", response_model=CardResponse)
 async def create_card(card_data: CardCreate, token: str = Depends(security)):
     print(f"=== CREATE CARD ===")
@@ -509,6 +536,7 @@ async def create_card(card_data: CardCreate, token: str = Depends(security)):
     try:
         payload = verify_token(token.credentials)
         user_id = payload.get("sub")
+        print(f"DEBUG: Token verified, user ID: {user_id}")
         
         card_insert_data = {
             "account_id": user_id,
@@ -520,11 +548,15 @@ async def create_card(card_data: CardCreate, token: str = Depends(security)):
             "expiry": card_data.expiry,
             "zipcode": card_data.zipcode,
             "address": card_data.address,
-            "budget_id": card_data.budget_id,
+            # "budget_id": card_data.budget_id,  # Ignoring budget_id for now
             "created_at": datetime.utcnow().isoformat()
         }
         
+        print(f"DEBUG: Creating card with data: {card_insert_data}")
+        
         response = supabase.table("cards").insert(card_insert_data).execute()
+        
+        print(f"DEBUG: Create card response: {response}")
         
         if response.data:
             return CardResponse(**response.data[0])
@@ -532,12 +564,13 @@ async def create_card(card_data: CardCreate, token: str = Depends(security)):
             raise HTTPException(status_code=400, detail="Failed to create card")
             
     except Exception as e:
-        print(f"DEBUG: Card creation error: {str(e)}")
+        print(f"DEBUG: Create card error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/api/cards", response_model=list[CardResponse])
-async def get_cards(token: str = Depends(security)):
-    print(f"=== GET CARDS ===")
+@app.put("/api/cards/{card_id}", response_model=CardResponse)
+async def update_card(card_id: str, card_data: CardCreate, token: str = Depends(security)):
+    print(f"=== UPDATE CARD ===")
+    print(f"DEBUG: Received card update request for card ID: {card_id}")
     
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase not configured.")
@@ -545,13 +578,73 @@ async def get_cards(token: str = Depends(security)):
     try:
         payload = verify_token(token.credentials)
         user_id = payload.get("sub")
+        print(f"DEBUG: Token verified, user ID: {user_id}")
         
-        response = supabase.table("cards").select("*").eq("account_id", user_id).execute()
+        # Verify the card belongs to the user
+        card_response = supabase.table("cards").select("*").eq("id", card_id).eq("account_id", user_id).execute()
         
-        return [CardResponse(**card) for card in response.data]
+        if not card_response.data:
+            raise HTTPException(status_code=404, detail="Card not found")
         
+        card_update_data = {
+            "name": card_data.name,
+            "status": card_data.status,
+            "balance": card_data.balance,
+            "cardholder_name": card_data.cardholder_name,
+            "cvv": card_data.cvv,
+            "expiry": card_data.expiry,
+            "zipcode": card_data.zipcode,
+            "address": card_data.address,
+            # "budget_id": card_data.budget_id,  # Ignoring budget_id for now
+        }
+        
+        print(f"DEBUG: Updating card with data: {card_update_data}")
+        
+        response = supabase.table("cards").update(card_update_data).eq("id", card_id).execute()
+        
+        print(f"DEBUG: Update card response: {response}")
+        
+        if response.data:
+            return CardResponse(**response.data[0])
+        else:
+            raise HTTPException(status_code=400, detail="Failed to update card")
+            
     except Exception as e:
-        print(f"DEBUG: Get cards error: {str(e)}")
+        print(f"DEBUG: Update card error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/cards/{card_id}")
+async def delete_card(card_id: str, token: str = Depends(security)):
+    print(f"=== DELETE CARD ===")
+    print(f"DEBUG: Received card deletion request for card ID: {card_id}")
+    
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase not configured.")
+    
+    try:
+        payload = verify_token(token.credentials)
+        user_id = payload.get("sub")
+        print(f"DEBUG: Token verified, user ID: {user_id}")
+        
+        # Verify the card belongs to the user
+        card_response = supabase.table("cards").select("*").eq("id", card_id).eq("account_id", user_id).execute()
+        
+        if not card_response.data:
+            raise HTTPException(status_code=404, detail="Card not found")
+        
+        print(f"DEBUG: Deleting card with ID: {card_id}")
+        
+        response = supabase.table("cards").delete().eq("id", card_id).execute()
+        
+        print(f"DEBUG: Delete card response: {response}")
+        
+        if response.data:
+            return {"message": "Card deleted successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to delete card")
+            
+    except Exception as e:
+        print(f"DEBUG: Delete card error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 # Transaction endpoints
