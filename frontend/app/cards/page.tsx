@@ -5,6 +5,15 @@ import { Plus, CreditCard, Filter } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import CardModal from '../../components/CardModal'
 
+interface Budget {
+    id: string
+    name: string
+    limit_amount: number
+    period: 'monthly' | 'weekly' | 'quarterly'
+    require_receipts: boolean
+    created_at: string
+}
+
 interface Card {
     id: string
     name: string
@@ -15,12 +24,13 @@ interface Card {
     expiry: string
     zipcode: string
     address: string
-    budget_id?: string
+    budget_ids: string[]
     created_at: string
 }
 
 export default function CardsPage() {
     const [cards, setCards] = useState<Card[]>([])
+    const [budgets, setBudgets] = useState<Budget[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [activeTab, setActiveTab] = useState<'all' | 'issued' | 'frozen' | 'cancelled'>('all')
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -29,6 +39,7 @@ export default function CardsPage() {
 
     useEffect(() => {
         fetchCards()
+        fetchBudgets()
     }, [])
 
     const fetchCards = async () => {
@@ -55,6 +66,28 @@ export default function CardsPage() {
         }
     }
 
+    const fetchBudgets = async () => {
+        try {
+            const token = localStorage.getItem('access_token')
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+            const response = await fetch(`${apiUrl}/api/budgets`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setBudgets(data)
+            } else {
+                console.error('Failed to fetch budgets')
+            }
+        } catch (error) {
+            console.error('Error fetching budgets:', error)
+        }
+    }
+
     const handleCreateCard = () => {
         setSelectedCard(null)
         setModalMode('create')
@@ -72,9 +105,6 @@ export default function CardsPage() {
             const token = localStorage.getItem('access_token')
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-            // Remove budget_id from the request data since we're ignoring it for now
-            const { budget_id, ...cardDataWithoutBudget } = cardData
-
             if (modalMode === 'create') {
                 // Create new card
                 const response = await fetch(`${apiUrl}/api/cards`, {
@@ -83,7 +113,7 @@ export default function CardsPage() {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify(cardDataWithoutBudget)
+                    body: JSON.stringify(cardData)
                 })
 
                 if (response.ok) {
@@ -99,7 +129,7 @@ export default function CardsPage() {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify(cardDataWithoutBudget)
+                    body: JSON.stringify(cardData)
                 })
 
                 if (response.ok) {
@@ -152,6 +182,21 @@ export default function CardsPage() {
             default:
                 return 'bg-gray-100 text-gray-800'
         }
+    }
+
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD'
+        }).format(amount)
+    }
+
+    const getCardBudgets = (card: Card) => {
+        return budgets.filter(budget => card.budget_ids.includes(budget.id))
+    }
+
+    const getTotalBudgetAmount = (card: Card) => {
+        return getCardBudgets(card).reduce((total, budget) => total + budget.limit_amount, 0)
     }
 
     const getCardholderInitials = (name: string) => {
@@ -247,9 +292,11 @@ export default function CardsPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">
-                                                ${card.balance.toFixed(2)} / $400*
+                                                {formatCurrency(card.balance)} / {formatCurrency(getTotalBudgetAmount(card))}
                                             </div>
-                                            <div className="text-sm text-gray-500">All Time</div>
+                                            <div className="text-sm text-gray-500">
+                                                {getCardBudgets(card).length > 0 ? `${getCardBudgets(card).length} budget${getCardBudgets(card).length > 1 ? 's' : ''}` : 'No budgets'}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center space-x-3">
@@ -268,8 +315,27 @@ export default function CardsPage() {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            General Expense
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="text-sm text-gray-900">
+                                                {getCardBudgets(card).length > 0 ? (
+                                                    <div className="space-y-1">
+                                                        {getCardBudgets(card).map(budget => (
+                                                            <div key={budget.id} className="flex justify-between items-center">
+                                                                <span className="text-gray-600">{budget.name}</span>
+                                                                <span className="font-medium">{formatCurrency(budget.limit_amount)}</span>
+                                                            </div>
+                                                        ))}
+                                                        <div className="border-t pt-1 mt-1">
+                                                            <div className="flex justify-between items-center font-medium">
+                                                                <span>Total</span>
+                                                                <span>{formatCurrency(getTotalBudgetAmount(card))}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-400">No budgets assigned</span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             ✓ All

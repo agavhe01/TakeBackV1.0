@@ -100,6 +100,16 @@ class BudgetResponse(BaseModel):
     require_receipts: bool
     created_at: str
 
+class CardBudgetCreate(BaseModel):
+    card_id: str
+    budget_id: str
+
+class CardBudgetResponse(BaseModel):
+    id: str
+    card_id: str
+    budget_id: str
+    created_at: str
+
 class CardCreate(BaseModel):
     name: str
     status: str = "issued"  # 'issued', 'frozen', 'cancelled'
@@ -109,7 +119,7 @@ class CardCreate(BaseModel):
     expiry: str
     zipcode: str
     address: str
-    budget_id: Optional[str] = None
+    budget_ids: list[str] = []  # List of budget IDs to associate with the card
 
 class CardResponse(BaseModel):
     id: str
@@ -122,7 +132,7 @@ class CardResponse(BaseModel):
     expiry: str
     zipcode: str
     address: str
-    budget_id: Optional[str]
+    budget_ids: list[str] = []  # List of associated budget IDs
     created_at: str
 
 class TransactionCreate(BaseModel):
@@ -586,13 +596,22 @@ async def get_cards(token: str = Depends(security)):
         user_id = payload.get("sub")
         print(f"DEBUG: Token verified, user ID: {user_id}")
         
-        # Get all cards for the user
-        response = supabase.table("cards").select("*").eq("account_id", user_id).execute()
+        # Get all cards for the user with their associated budgets
+        cards_response = supabase.table("cards").select("*").eq("account_id", user_id).execute()
         
-        print(f"DEBUG: Cards response: {response}")
+        print(f"DEBUG: Cards response: {cards_response}")
         
-        if response.data:
-            return [CardResponse(**card) for card in response.data]
+        if cards_response.data:
+            cards_with_budgets = []
+            for card in cards_response.data:
+                # Get associated budgets for this card
+                card_budgets_response = supabase.table("card_budgets").select("budget_id").eq("card_id", card["id"]).execute()
+                budget_ids = [cb["budget_id"] for cb in card_budgets_response.data] if card_budgets_response.data else []
+                
+                card_with_budgets = {**card, "budget_ids": budget_ids}
+                cards_with_budgets.append(CardResponse(**card_with_budgets))
+            
+            return cards_with_budgets
         else:
             return []
             
@@ -623,7 +642,6 @@ async def create_card(card_data: CardCreate, token: str = Depends(security)):
             "expiry": card_data.expiry,
             "zipcode": card_data.zipcode,
             "address": card_data.address,
-            # "budget_id": card_data.budget_id,  # Ignoring budget_id for now
             "created_at": datetime.utcnow().isoformat()
         }
         
@@ -634,7 +652,22 @@ async def create_card(card_data: CardCreate, token: str = Depends(security)):
         print(f"DEBUG: Create card response: {response}")
         
         if response.data:
-            return CardResponse(**response.data[0])
+            created_card = response.data[0]
+            
+            # Associate budgets with the card if provided
+            if card_data.budget_ids:
+                for budget_id in card_data.budget_ids:
+                    # Verify the budget belongs to the user
+                    budget_response = supabase.table("budgets").select("*").eq("id", budget_id).eq("account_id", user_id).execute()
+                    if budget_response.data:
+                        card_budget_data = {
+                            "card_id": created_card["id"],
+                            "budget_id": budget_id,
+                            "created_at": datetime.utcnow().isoformat()
+                        }
+                        supabase.table("card_budgets").insert(card_budget_data).execute()
+            
+            return CardResponse(**{**created_card, "budget_ids": card_data.budget_ids})
         else:
             raise HTTPException(status_code=400, detail="Failed to create card")
             
@@ -670,7 +703,6 @@ async def update_card(card_id: str, card_data: CardCreate, token: str = Depends(
             "expiry": card_data.expiry,
             "zipcode": card_data.zipcode,
             "address": card_data.address,
-            # "budget_id": card_data.budget_id,  # Ignoring budget_id for now
         }
         
         print(f"DEBUG: Updating card with data: {card_update_data}")
@@ -680,7 +712,26 @@ async def update_card(card_id: str, card_data: CardCreate, token: str = Depends(
         print(f"DEBUG: Update card response: {response}")
         
         if response.data:
-            return CardResponse(**response.data[0])
+            updated_card = response.data[0]
+            
+            # Update budget associations
+            # First, remove all existing budget associations
+            supabase.table("card_budgets").delete().eq("card_id", card_id).execute()
+            
+            # Then add new budget associations
+            if card_data.budget_ids:
+                for budget_id in card_data.budget_ids:
+                    # Verify the budget belongs to the user
+                    budget_response = supabase.table("budgets").select("*").eq("id", budget_id).eq("account_id", user_id).execute()
+                    if budget_response.data:
+                        card_budget_data = {
+                            "card_id": card_id,
+                            "budget_id": budget_id,
+                            "created_at": datetime.utcnow().isoformat()
+                        }
+                        supabase.table("card_budgets").insert(card_budget_data).execute()
+            
+            return CardResponse(**{**updated_card, "budget_ids": card_data.budget_ids})
         else:
             raise HTTPException(status_code=400, detail="Failed to update card")
             

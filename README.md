@@ -76,6 +76,7 @@ takeback/
 create extension if not exists "pgcrypto";
 
 -- Drop tables if re-running
+DROP TABLE IF EXISTS card_budgets CASCADE;
 DROP TABLE IF EXISTS transactions CASCADE;
 DROP TABLE IF EXISTS cards CASCADE;
 DROP TABLE IF EXISTS budgets CASCADE;
@@ -109,7 +110,7 @@ CREATE TABLE budgets (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- CARDS: Issued cards linked to an account and optional budget
+-- CARDS: Issued cards linked to an account
 CREATE TABLE cards (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -121,8 +122,16 @@ CREATE TABLE cards (
     expiry TEXT,
     zipcode TEXT,
     address TEXT,
-    budget_id UUID REFERENCES budgets(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- CARD_BUDGETS: Junction table for many-to-many relationship between cards and budgets
+CREATE TABLE card_budgets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    card_id UUID NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    budget_id UUID NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(card_id, budget_id)
 );
 
 -- TRANSACTIONS: Purchases made using a card
@@ -145,6 +154,42 @@ CREATE TABLE policies (
 );
 ```
 
-## Bugs
+## Features
 
-1. Sign up/in --> password and some fields text not aligned in input field 
+### Budget Management
+- Create and manage multiple budgets with different periods (weekly, monthly, quarterly)
+- Set spending limits and receipt requirements
+- Track budget usage and remaining amounts
+
+### Card Management
+- Create virtual cards with multiple budget associations
+- Assign multiple budgets to a single card
+- Calculate total spending limit based on combined budgets
+- View budget breakdown for each card
+
+### Transaction Tracking
+- Record transactions against specific cards
+- Track spending against budget limits
+- Monitor spending patterns and trends
+
+## API Endpoints
+
+### Cards
+- `GET /api/cards` - Get all cards with associated budgets
+- `POST /api/cards` - Create a new card with budget associations
+- `PUT /api/cards/{card_id}` - Update a card and its budget associations
+- `DELETE /api/cards/{card_id}` - Delete a card
+
+### Budgets
+- `GET /api/budgets` - Get all budgets
+- `POST /api/budgets` - Create a new budget
+- `PUT /api/budgets/{budget_id}` - Update a budget
+- `DELETE /api/budgets/{budget_id}` - Delete a budget
+
+## Recent Updates
+
+### Multiple Budgets per Card
+- Cards can now be associated with multiple budgets
+- Total spending limit is calculated as the sum of all associated budgets
+- Budget breakdown is displayed in the cards dashboard
+- Card creation/editing modal shows selectable budgets as checkboxes

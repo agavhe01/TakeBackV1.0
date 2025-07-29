@@ -3,6 +3,15 @@
 import { useState, useEffect } from 'react'
 import { X, Copy, RefreshCw, CreditCard, Eye, EyeOff, Trash2 } from 'lucide-react'
 
+interface Budget {
+    id: string
+    name: string
+    limit_amount: number
+    period: 'monthly' | 'weekly' | 'quarterly'
+    require_receipts: boolean
+    created_at: string
+}
+
 interface Card {
     id: string
     name: string
@@ -13,7 +22,7 @@ interface Card {
     expiry: string
     zipcode: string
     address: string
-    budget_id?: string
+    budget_ids: string[]
     created_at: string
 }
 
@@ -36,11 +45,19 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
         expiry: '',
         zipcode: '',
         address: '',
-        budget_id: ''
+        budget_ids: [] as string[]
     })
     const [isLoading, setIsLoading] = useState(false)
     const [showSensitiveInfo, setShowSensitiveInfo] = useState(false)
     const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false)
+    const [availableBudgets, setAvailableBudgets] = useState<Budget[]>([])
+    const [isLoadingBudgets, setIsLoadingBudgets] = useState(false)
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchBudgets()
+        }
+    }, [isOpen])
 
     useEffect(() => {
         if (card && mode === 'edit') {
@@ -52,7 +69,7 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                 expiry: card.expiry,
                 zipcode: card.zipcode,
                 address: card.address,
-                budget_id: card.budget_id || ''
+                budget_ids: card.budget_ids || []
             })
             setActiveTab('overview') // Show overview for existing cards
         } else if (mode === 'create') {
@@ -64,11 +81,51 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                 expiry: '',
                 zipcode: '',
                 address: '',
-                budget_id: ''
+                budget_ids: []
             })
             setActiveTab('edit') // Show edit tab for new cards
         }
     }, [card, mode])
+
+    const fetchBudgets = async () => {
+        setIsLoadingBudgets(true)
+        try {
+            const token = localStorage.getItem('access_token')
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+            const response = await fetch(`${apiUrl}/api/budgets`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setAvailableBudgets(data)
+            } else {
+                console.error('Failed to fetch budgets')
+            }
+        } catch (error) {
+            console.error('Error fetching budgets:', error)
+        } finally {
+            setIsLoadingBudgets(false)
+        }
+    }
+
+    const handleBudgetToggle = (budgetId: string) => {
+        setFormData(prev => ({
+            ...prev,
+            budget_ids: prev.budget_ids.includes(budgetId)
+                ? prev.budget_ids.filter(id => id !== budgetId)
+                : [...prev.budget_ids, budgetId]
+        }))
+    }
+
+    const calculateTotalBalance = () => {
+        return availableBudgets
+            .filter(budget => formData.budget_ids.includes(budget.id))
+            .reduce((total, budget) => total + budget.limit_amount, 0)
+    }
 
     const handleSave = async () => {
         setIsLoading(true)
@@ -121,6 +178,13 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
 
     const getBalancePercentage = (balance: number, limit: number = 400) => {
         return Math.min((balance / limit) * 100, 100)
+    }
+
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD'
+        }).format(amount)
     }
 
     if (!isOpen) return null
@@ -319,19 +383,36 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                             {/* Balance */}
                             <div>
                                 <h3 className="text-lg font-medium text-gray-900 mb-4">Balance</h3>
-                                <div className="space-y-2">
+                                <div className="space-y-4">
                                     <div className="flex justify-between items-center">
                                         <span className="text-2xl font-bold text-gray-900">
-                                            ${card.balance?.toFixed(2) || '0.00'} / $400*
+                                            ${card.balance?.toFixed(2) || '0.00'} / {formatCurrency(calculateTotalBalance())}
                                         </span>
-                                        <span className="text-sm text-gray-500">All Time</span>
+                                        <span className="text-sm text-gray-500">Total Budget</span>
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2">
                                         <div
                                             className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                            style={{ width: `${getBalancePercentage(card.balance || 0)}%` }}
+                                            style={{ width: `${getBalancePercentage(card.balance || 0, calculateTotalBalance())}%` }}
                                         ></div>
                                     </div>
+
+                                    {/* Budget Breakdown */}
+                                    {card.budget_ids && card.budget_ids.length > 0 && (
+                                        <div className="mt-4">
+                                            <h4 className="text-sm font-medium text-gray-900 mb-2">Budget Breakdown</h4>
+                                            <div className="space-y-2">
+                                                {availableBudgets
+                                                    .filter(budget => card.budget_ids.includes(budget.id))
+                                                    .map(budget => (
+                                                        <div key={budget.id} className="flex justify-between items-center text-sm">
+                                                            <span className="text-gray-600">{budget.name}</span>
+                                                            <span className="font-medium">{formatCurrency(budget.limit_amount)}</span>
+                                                        </div>
+                                                    ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -472,14 +553,28 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Budget
                                 </label>
-                                <select
-                                    value={formData.budget_id}
-                                    onChange={(e) => setFormData({ ...formData, budget_id: e.target.value })}
-                                    className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                >
-                                    <option value="">No Budget</option>
-                                    <option value="budget-1000">General Budget - $1000</option>
-                                </select>
+                                <div className="space-y-2">
+                                    {isLoadingBudgets ? (
+                                        <div className="text-center py-2">Loading budgets...</div>
+                                    ) : availableBudgets.length === 0 ? (
+                                        <div className="text-center py-2">No budgets available.</div>
+                                    ) : (
+                                        availableBudgets.map(budget => (
+                                            <div key={budget.id} className="flex items-center space-x-2">
+                                                <input
+                                                    type="checkbox"
+                                                    id={`budget-${budget.id}`}
+                                                    checked={formData.budget_ids.includes(budget.id)}
+                                                    onChange={() => handleBudgetToggle(budget.id)}
+                                                    className="rounded"
+                                                />
+                                                <label htmlFor={`budget-${budget.id}`} className="text-sm text-gray-700">
+                                                    {budget.name} - {formatCurrency(budget.limit_amount)}
+                                                </label>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
