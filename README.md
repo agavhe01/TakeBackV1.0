@@ -1,6 +1,19 @@
 # TakeBack V1.0
 
-A credit management and spend management web application built with FastAPI, Next.js, Supabase, and Tailwind CSS.
+A credit/debit card management and spend management web application built with FastAPI, Next.js, Supabase, and Tailwind CSS.
+
+
+## 🌐 **Live Application Links**
+
+### 🎨 **Frontend (Next.js)**
+**🔗 [https://takeback-agavhera.vercel.app/](https://takeback-agavhera.vercel.app/)**
+
+### ⚙️ **Backend (FastAPI)**
+**🔗 [https://takeback-backend-agavhera.vercel.app/](https://takeback-backend-agavhera.vercel.app/)**
+
+---
+
+TakeBack helps organizations manage their credit card spending through comprehensive budget tracking, virtual card issuance, and detailed transaction analytics. Users can create multiple budgets with different spending periods (weekly, monthly, quarterly), issue virtual cards linked to specific budgets, and track spending in real-time. The application provides detailed analytics on spending patterns, balance calculations, and policy enforcement for receipt requirements and spending thresholds. With its modular backend architecture and modern frontend, TakeBack offers a scalable solution for businesses looking to gain better control over their corporate spending.
 
 ## Project Structure
 
@@ -87,7 +100,7 @@ takeback/
    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    
    # Option 3: Using the legacy main.py (redirects to run.py)
-   python3 main.py
+   python3 main.py   --> PROBLEMATIC SOMETIMES
    ```
 
    The server will start on `http://localhost:8000` with auto-reload enabled.
@@ -110,95 +123,6 @@ takeback/
    ```bash
    npm run dev
    ```
-
-## Deployment
-
-### Backend Deployment (Vercel)
-
-The backend is configured for serverless deployment on Vercel:
-
-1. **Automatic Deployment:**
-   - Push to your main branch triggers automatic deployment
-   - Vercel uses `deploy.py` as the entry point for production
-   - Configuration is in `backend/vercel.json`
-
-2. **Manual Deployment:**
-   ```bash
-   # Install Vercel CLI
-   npm install -g vercel
-   
-   # Deploy from backend directory
-   cd backend
-   vercel --prod
-   ```
-
-3. **Environment Variables:**
-   - Set all required environment variables in Vercel dashboard
-   - Use the same variables as in your `.env` file
-   - Required variables: `SUPABASE_URL`, `SUPABASE_KEY`, `JWT_SECRET`
-
-### Frontend Deployment (Vercel)
-
-The frontend is also configured for Vercel deployment:
-
-1. **Automatic Deployment:**
-   - Push to main branch triggers automatic deployment
-   - Configuration is in `frontend/vercel.json`
-
-2. **Manual Deployment:**
-   ```bash
-   # Deploy from frontend directory
-   cd frontend
-   vercel --prod
-   ```
-
-3. **Environment Variables:**
-   - Set `NEXT_PUBLIC_API_URL` to your backend URL
-   - Configure any other frontend-specific variables
-
-### Deployment Architecture
-
-```
-┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │    Backend      │
-│   (Vercel)      │◄──►│   (Vercel)      │
-│                 │    │                 │
-│  Next.js App    │    │  FastAPI App    │
-│  Static Hosting │    │ Serverless Fn   │
-└─────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌─────────────────┐
-                       │   Supabase      │
-                       │   (Database)    │
-                       │   PostgreSQL    │
-                       └─────────────────┘
-```
-
-### Environment Configuration
-
-#### Backend Environment Variables
-```bash
-# Supabase Configuration
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_anon_key
-
-# JWT Configuration
-JWT_SECRET=your_jwt_secret_key
-
-# Application Settings
-PROJECT_NAME=TakeBack
-VERSION=1.0.0
-```
-
-#### Frontend Environment Variables
-```bash
-# API Configuration
-NEXT_PUBLIC_API_URL=https://your-backend-url.vercel.app
-
-# Optional: Analytics
-NEXT_PUBLIC_GA_ID=your_google_analytics_id
-```
 
 ## Development vs Production
 

@@ -48,10 +48,9 @@ backend/
 ├── run.py                      # Development entry point
 ├── deploy.py                   # Production deployment entry point
 ├── main.py                     # Legacy entry point (redirects to run.py)
-├── main_original.py            # Backup of original file
 ├── requirements.txt
 ├── vercel.json                 # Vercel deployment configuration
-└── env.example
+└── env.example                 # Example env vars to inlude in dir
 ```
 
 ## Key Benefits
@@ -226,11 +225,10 @@ All original endpoints are preserved:
 
 ## Migration Notes
 
-1. **Original file preserved**: `main_original.py` contains the original 1536-line file
-2. **All functionality preserved**: Every endpoint and feature from the original is maintained
-3. **Debug statements preserved**: All print and debug statements are intact
-4. **Same database schema**: No changes to the database structure
-5. **Same environment variables**: Uses the same `.env` configuration
+1. **All functionality preserved**: Every endpoint and feature from the original is maintained
+2. **Debug statements preserved**: All print and debug statements are intact
+3. **Same database schema**: No changes to the database structure
+4. **Same environment variables**: Uses the same `.env` configuration
 
 ## Testing
 
