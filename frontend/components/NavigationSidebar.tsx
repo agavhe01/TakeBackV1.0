@@ -141,7 +141,7 @@ export default function NavigationSidebar({ user }: NavigationSidebarProps) {
                     <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center">
                         <Leaf className="h-5 w-5 text-white" />
                     </div>
-                    <span className="text-xl font-bold text-gray-900">Givefront</span>
+                    <span className="text-xl font-bold text-gray-900">TakeBack</span>
                 </div>
             </div>
 

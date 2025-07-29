@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { CreditCard, TrendingUp, DollarSign, Users, Calendar, Clock } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
+import { API_URLS, api } from '../../config'
+import React from 'react'
 
 interface User {
     id: string
@@ -88,6 +90,16 @@ export default function DashboardPage() {
     const [selectedCard, setSelectedCard] = useState<CardBalance | null>(null)
     const [showPieChart, setShowPieChart] = useState(false)
 
+    // Add loading states for individual sections
+    const [cardsLoading, setCardsLoading] = useState(true)
+    const [balancesLoading, setBalancesLoading] = useState(true)
+    const [analyticsLoading, setAnalyticsLoading] = useState(true)
+    const [transactionsLoading, setTransactionsLoading] = useState(true)
+
+
+
+
+
     useEffect(() => {
         console.log('=== DASHBOARD PAGE LOADED ===')
         console.log('Checking authentication status...')
@@ -100,160 +112,147 @@ export default function DashboardPage() {
             console.log('User data exists:', !!userData)
 
             if (!token || !userData) {
-                console.log('No token or user data found, redirecting to signin...')
+                console.log('No token or user data found, redirecting to signin')
                 router.push('/signin')
                 return
             }
 
             try {
-                console.log('Parsing user data...')
                 const parsedUser = JSON.parse(userData)
-                console.log('User data:', parsedUser)
                 setUser(parsedUser)
+                console.log('User data set:', parsedUser)
 
-                // Verify token is still valid
-                console.log('Verifying token with backend...')
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-                const response = await fetch(`${apiUrl}/api/auth/profile`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                })
-
-                console.log('Profile verification response status:', response.status)
-
-                if (!response.ok) {
-                    console.log('Token verification failed, redirecting to signin...')
-                    localStorage.removeItem('access_token')
-                    localStorage.removeItem('user')
-                    router.push('/signin')
-                    return
-                }
-
-                console.log('Token verified successfully')
-
-                // Fetch dashboard data
+                // Start loading data immediately after user is set
                 await fetchDashboardData()
-
-            } catch (err) {
-                console.error('Error checking authentication:', err)
-                setError('Authentication error')
+            } catch (error) {
+                console.error('Error parsing user data:', error)
                 router.push('/signin')
-            } finally {
-                setIsLoading(false)
             }
         }
 
         checkAuth()
     }, [router])
 
-    const fetchDashboardData = async () => {
-        try {
-            const token = localStorage.getItem('access_token')
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    // Simple time period change handler
+    useEffect(() => {
+        if (user && selectedTimePeriod) {
+            // Refetch period-dependent data when time period changes
+            setBalancesLoading(true)
+            setAnalyticsLoading(true)
 
-            // Fetch all data in parallel
-            const [cardsResponse, balancesResponse, analyticsResponse, transactionsResponse] = await Promise.all([
-                fetch(`${apiUrl}/api/cards`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }),
-                fetch(`${apiUrl}/api/analytics/balances?period=${selectedTimePeriod}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }),
-                fetch(`${apiUrl}/api/analytics/spending?period=${selectedTimePeriod}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }),
-                fetch(`${apiUrl}/api/analytics/transactions/recent?limit=10`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                })
+            Promise.all([
+                api.get(`${API_URLS.ANALYTICS_BALANCES}?period=${selectedTimePeriod}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        setBalances(data)
+                        setBalancesLoading(false)
+                    })
+                    .catch(error => {
+                        console.error('Error fetching balances:', error)
+                        setBalancesLoading(false)
+                    }),
+                api.get(`${API_URLS.ANALYTICS_SPENDING}?period=${selectedTimePeriod}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        setSpendingAnalytics(data)
+                        setAnalyticsLoading(false)
+                    })
+                    .catch(error => {
+                        console.error('Error fetching analytics:', error)
+                        setAnalyticsLoading(false)
+                    })
             ])
+        }
+    }, [selectedTimePeriod, user])
 
-            if (cardsResponse.ok) {
-                const cardsData = await cardsResponse.json()
-                setCards(cardsData)
-            }
+    const fetchDashboardData = useCallback(async () => {
+        try {
+            console.log('Fetching dashboard data...')
 
-            if (balancesResponse.ok) {
-                const balancesData = await balancesResponse.json()
-                setBalances(balancesData)
-            }
+            // Always fetch fresh data on initial load (ignore cache for now)
+            const promises = [
+                api.get(API_URLS.CARDS)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Failed to fetch cards')
+                        return response.json()
+                    })
+                    .then(data => {
+                        console.log('Cards loaded:', data)
+                        setCards(data)
+                        setCardsLoading(false)
+                    })
+                    .catch(error => {
+                        console.error('Error fetching cards:', error)
+                        setCardsLoading(false)
+                    }),
 
-            if (analyticsResponse.ok) {
-                const analyticsData = await analyticsResponse.json()
-                setSpendingAnalytics(analyticsData)
-            }
+                api.get(`${API_URLS.ANALYTICS_BALANCES}?period=${selectedTimePeriod}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Failed to fetch balances')
+                        return response.json()
+                    })
+                    .then(data => {
+                        console.log('Balances loaded:', data)
+                        setBalances(data)
+                        setBalancesLoading(false)
+                    })
+                    .catch(error => {
+                        console.error('Error fetching balances:', error)
+                        setBalancesLoading(false)
+                    }),
 
-            if (transactionsResponse.ok) {
-                const transactionsData = await transactionsResponse.json()
-                setRecentTransactions(transactionsData)
-            }
+                api.get(`${API_URLS.ANALYTICS_SPENDING}?period=${selectedTimePeriod}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Failed to fetch analytics')
+                        return response.json()
+                    })
+                    .then(data => {
+                        console.log('Analytics loaded:', data)
+                        setSpendingAnalytics(data)
+                        setAnalyticsLoading(false)
+                    })
+                    .catch(error => {
+                        console.error('Error fetching analytics:', error)
+                        setAnalyticsLoading(false)
+                    }),
+
+                api.get(`${API_URLS.ANALYTICS_RECENT_TRANSACTIONS}?limit=10`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Failed to fetch transactions')
+                        return response.json()
+                    })
+                    .then(data => {
+                        console.log('Transactions loaded:', data)
+                        setRecentTransactions(data)
+                        setTransactionsLoading(false)
+                    })
+                    .catch(error => {
+                        console.error('Error fetching transactions:', error)
+                        setTransactionsLoading(false)
+                    })
+            ]
+
+            // Wait for all promises to complete
+            await Promise.all(promises)
+
+            console.log('All data loaded, setting isLoading to false')
+            setIsLoading(false)
+
         } catch (error) {
             console.error('Error fetching dashboard data:', error)
-        }
-    }
-
-    // Refetch analytics when time period changes
-    useEffect(() => {
-        if (user) {
-            fetchSpendingAnalytics()
+            setIsLoading(false)
         }
     }, [selectedTimePeriod])
 
-    // Refetch balances when time period changes
-    useEffect(() => {
-        if (user) {
-            fetchBalances()
-        }
-    }, [selectedTimePeriod])
 
-    const fetchSpendingAnalytics = async () => {
-        try {
-            const token = localStorage.getItem('access_token')
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-
-            const response = await fetch(`${apiUrl}/api/analytics/spending?period=${selectedTimePeriod}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-
-            if (response.ok) {
-                const data = await response.json()
-                setSpendingAnalytics(data)
-            }
-        } catch (error) {
-            console.error('Error fetching spending analytics:', error)
-        }
-    }
-
-    const fetchBalances = async () => {
-        try {
-            const token = localStorage.getItem('access_token')
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-
-            const response = await fetch(`${apiUrl}/api/analytics/balances?period=${selectedTimePeriod}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-
-            if (response.ok) {
-                const data = await response.json()
-                setBalances(data)
-            }
-        } catch (error) {
-            console.error('Error fetching balances:', error)
-        }
-    }
 
     const fetchCardBalance = async (cardId: string, period: string) => {
         try {
-            const token = localStorage.getItem('access_token')
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-
-            const response = await fetch(`${apiUrl}/api/cards/${cardId}/balance?period=${period}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
+            const response = await api.get(`${API_URLS.CARDS}/${cardId}/balance?period=${period}`)
 
             if (response.ok) {
                 const data = await response.json()
-                setSelectedCard(data)
+                return data
             }
         } catch (error) {
             console.error('Error fetching card balance:', error)
@@ -340,14 +339,107 @@ export default function DashboardPage() {
         }
     }
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading dashboard...</p>
-                </div>
+    // Skeleton loading components
+    const SkeletonCard = () => (
+        <div className="bg-white rounded-lg shadow p-6 animate-pulse">
+            <div className="flex items-center justify-between mb-4">
+                <div className="h-4 bg-gray-200 rounded w-24"></div>
+                <div className="h-4 bg-gray-200 rounded w-16"></div>
             </div>
+            <div className="h-8 bg-gray-200 rounded w-32 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-20"></div>
+        </div>
+    )
+
+    const SkeletonTable = () => (
+        <div className="bg-white rounded-lg shadow overflow-hidden animate-pulse">
+            <div className="px-6 py-4 border-b border-gray-200">
+                <div className="h-4 bg-gray-200 rounded w-32"></div>
+            </div>
+            <div className="p-6">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center space-x-4 mb-4">
+                        <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+                        <div className="flex-1">
+                            <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
+                            <div className="h-3 bg-gray-200 rounded w-32"></div>
+                        </div>
+                        <div className="h-4 bg-gray-200 rounded w-16"></div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+
+    const SkeletonChart = () => (
+        <div className="bg-white rounded-lg shadow p-6 animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-32 mb-4"></div>
+            <div className="h-48 bg-gray-200 rounded mb-4"></div>
+            <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center space-x-3">
+                        <div className="w-3 h-3 bg-gray-200 rounded"></div>
+                        <div className="h-3 bg-gray-200 rounded w-20"></div>
+                        <div className="flex-1 h-3 bg-gray-200 rounded"></div>
+                        <div className="h-3 bg-gray-200 rounded w-12"></div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+
+    // Memoized calculations
+    const totalSpent = useMemo(() => {
+        return balances?.total_spent || 0
+    }, [balances?.total_spent])
+
+    const totalLimit = useMemo(() => {
+        return balances?.total_limit || 0
+    }, [balances?.total_limit])
+
+    const totalRemaining = useMemo(() => {
+        return balances?.total_remaining || 0
+    }, [balances?.total_remaining])
+
+    const activeCardsCount = useMemo(() => {
+        return cards.filter(card => card.status === 'issued').length
+    }, [cards])
+
+    const frozenCardsCount = useMemo(() => {
+        return cards.filter(card => card.status === 'frozen').length
+    }, [cards])
+
+    if (isLoading) {
+        console.log('Dashboard is loading...')
+        return (
+            <DashboardLayout>
+                <div className="p-8 space-y-8">
+                    {/* Welcome Section Skeleton */}
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="h-8 bg-gray-200 rounded w-64 mb-2"></div>
+                            <div className="h-4 bg-gray-200 rounded w-48"></div>
+                        </div>
+                        <div className="flex space-x-3">
+                            <div className="h-10 bg-gray-200 rounded w-32"></div>
+                            <div className="h-10 bg-gray-200 rounded w-24"></div>
+                        </div>
+                    </div>
+
+                    {/* Stats Cards Skeleton */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {[1, 2, 3, 4].map((i) => (
+                            <SkeletonCard key={i} />
+                        ))}
+                    </div>
+
+                    {/* Charts and Tables Skeleton */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <SkeletonChart />
+                        <SkeletonTable />
+                    </div>
+                </div>
+            </DashboardLayout>
         )
     }
 
@@ -367,6 +459,7 @@ export default function DashboardPage() {
         )
     }
 
+    console.log('Dashboard loaded, rendering content...')
     return (
         <DashboardLayout>
             <div className="p-8 space-y-8">
@@ -423,7 +516,21 @@ export default function DashboardPage() {
                             </div>
                         </div>
 
-                        {spendingAnalytics.length > 0 ? (
+                        {analyticsLoading ? (
+                            <div className="space-y-4">
+                                <div className="h-48 bg-gray-200 rounded animate-pulse"></div>
+                                <div className="space-y-2">
+                                    {[1, 2, 3].map((i) => (
+                                        <div key={i} className="flex items-center space-x-3">
+                                            <div className="w-3 h-3 bg-gray-200 rounded"></div>
+                                            <div className="h-3 bg-gray-200 rounded w-20"></div>
+                                            <div className="flex-1 h-3 bg-gray-200 rounded"></div>
+                                            <div className="h-3 bg-gray-200 rounded w-12"></div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : spendingAnalytics.length > 0 ? (
                             <div className="space-y-4">
                                 {/* Pie Chart */}
                                 <div className="flex justify-center mb-6">
@@ -516,7 +623,26 @@ export default function DashboardPage() {
                             </button>
                         </div>
 
-                        {recentTransactions.length > 0 ? (
+                        {transactionsLoading ? (
+                            <div className="space-y-3">
+                                {[1, 2, 3].map((i) => (
+                                    <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg animate-pulse">
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <div className="h-4 bg-gray-200 rounded w-24 mb-1"></div>
+                                                    <div className="h-3 bg-gray-200 rounded w-32"></div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="h-4 bg-gray-200 rounded w-16 mb-1"></div>
+                                                    <div className="h-3 bg-gray-200 rounded w-12"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : recentTransactions.length > 0 ? (
                             <div className="space-y-3">
                                 {recentTransactions.map((transaction) => (
                                     <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -564,7 +690,28 @@ export default function DashboardPage() {
                 <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-6">Account Balances</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {balances?.card_balances.map((cardBalance) => {
+                        {balancesLoading ? (
+                            // Show skeleton cards while loading
+                            [1, 2, 3].map((i) => (
+                                <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="h-5 bg-gray-200 rounded w-24"></div>
+                                        <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-center">
+                                            <div className="h-8 bg-gray-200 rounded w-20"></div>
+                                            <div className="h-4 bg-gray-200 rounded w-16"></div>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-3"></div>
+                                        <div className="flex justify-between items-center">
+                                            <div className="h-4 bg-gray-200 rounded w-20"></div>
+                                            <div className="h-4 bg-gray-200 rounded w-12"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : balances?.card_balances.map((cardBalance) => {
                             const percentage = getBalancePercentage(cardBalance.total_spent, cardBalance.total_limit)
                             return (
                                 <div
@@ -619,8 +766,17 @@ export default function DashboardPage() {
                                 <CreditCard className="h-6 w-6 text-blue-600" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-semibold text-gray-900">{cards.length}</h3>
-                                <p className="text-sm text-gray-500">cards active</p>
+                                {cardsLoading ? (
+                                    <>
+                                        <div className="h-6 bg-gray-200 rounded w-8 mb-1 animate-pulse"></div>
+                                        <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h3 className="text-xl font-semibold text-gray-900">{cards.length}</h3>
+                                        <p className="text-sm text-gray-500">cards active</p>
+                                    </>
+                                )}
                             </div>
                         </div>
                         <button

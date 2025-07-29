@@ -438,7 +438,7 @@ export default function CardsPage() {
                                                         {card.cardholder_name}
                                                     </div>
                                                     <div className="text-sm text-gray-500">
-                                                        {card.cardholder_name.toLowerCase().replace(' ', '.')}@givefront.com
+                                                        {card.cardholder_name.toLowerCase().replace(' ', '.')}@takeback.com
                                                     </div>
                                                 </div>
                                             </div>

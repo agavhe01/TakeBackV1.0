@@ -57,7 +57,7 @@ export default function FeatureCard() {
                             <span className="text-xs text-gray-600">+4</span>
                         </div>
                     </div>
-                    <span className="ml-2 text-sm text-gray-600">Givefront</span>
+                    <span className="ml-2 text-sm text-gray-600">TakeBack</span>
                 </div>
 
                 {/* Status Items */}
