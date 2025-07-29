@@ -90,7 +90,7 @@ export default function OnboardingPage() {
                 // Verify token is still valid
                 console.log('Verifying token with backend...')
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-                const response = await fetch(`${apiUrl}/api/user/profile`, {
+                const response = await fetch(`${apiUrl}/api/auth/profile`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -169,7 +169,7 @@ export default function OnboardingPage() {
 
             console.log(`Sending step ${currentStep} data:`, updateData)
 
-            const response = await fetch(`${apiUrl}/api/user/update-profile`, {
+            const response = await fetch(`${apiUrl}/api/auth/update-profile`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

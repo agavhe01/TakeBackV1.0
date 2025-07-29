@@ -53,7 +53,7 @@ export default function PersonalSettingsModal({ isOpen, onClose, user }: Persona
             const token = localStorage.getItem('access_token')
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-            const response = await fetch(`${apiUrl}/api/user/update-profile`, {
+            const response = await fetch(`${apiUrl}/api/auth/update-profile`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

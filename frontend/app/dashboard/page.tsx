@@ -114,7 +114,7 @@ export default function DashboardPage() {
                 // Verify token is still valid
                 console.log('Verifying token with backend...')
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-                const response = await fetch(`${apiUrl}/api/user/profile`, {
+                const response = await fetch(`${apiUrl}/api/auth/profile`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -157,13 +157,13 @@ export default function DashboardPage() {
                 fetch(`${apiUrl}/api/cards`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 }),
-                fetch(`${apiUrl}/api/balances?period=${selectedTimePeriod}`, {
+                fetch(`${apiUrl}/api/analytics/balances?period=${selectedTimePeriod}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 }),
                 fetch(`${apiUrl}/api/analytics/spending?period=${selectedTimePeriod}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 }),
-                fetch(`${apiUrl}/api/transactions/recent?limit=10`, {
+                fetch(`${apiUrl}/api/analytics/transactions/recent?limit=10`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 })
             ])
@@ -229,7 +229,7 @@ export default function DashboardPage() {
             const token = localStorage.getItem('access_token')
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-            const response = await fetch(`${apiUrl}/api/balances?period=${selectedTimePeriod}`, {
+            const response = await fetch(`${apiUrl}/api/analytics/balances?period=${selectedTimePeriod}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
 

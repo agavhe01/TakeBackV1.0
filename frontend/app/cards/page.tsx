@@ -121,7 +121,7 @@ export default function CardsPage() {
             const token = localStorage.getItem('access_token')
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-            const response = await fetch(`${apiUrl}/api/balances`, {
+            const response = await fetch(`${apiUrl}/api/analytics/balances`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

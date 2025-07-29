@@ -221,7 +221,7 @@ export default function SignupPage() {
                                     <div className="relative">
                                         <input
                                             type={showPassword ? 'text' : 'password'}
-                                            className={`block w-full pr-10 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.password ? 'border-red-300' : 'border-gray-300'
+                                            className={`block w-full pr-10 py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.password ? 'border-red-300' : 'border-gray-300'
                                                 }`}
                                             {...register('password', {
                                                 required: 'Password is required',
@@ -255,7 +255,7 @@ export default function SignupPage() {
                                     <div className="relative">
                                         <input
                                             type={showConfirmPassword ? 'text' : 'password'}
-                                            className={`block w-full pr-10 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.confirm_password ? 'border-red-300' : 'border-gray-300'
+                                            className={`block w-full pr-10 py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.confirm_password ? 'border-red-300' : 'border-gray-300'
                                                 }`}
                                             {...register('confirm_password', {
                                                 required: 'Please confirm your password',

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Plus, DollarSign, Filter, Calendar, Receipt } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import BudgetModal from '../../components/BudgetModal'
+import { API_URLS, getBudgetUrl, api } from '../../config'
 
 interface Budget {
     id: string
@@ -30,14 +31,7 @@ export default function BudgetsPage() {
 
     const fetchBudgets = async () => {
         try {
-            const token = localStorage.getItem('access_token')
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-
-            const response = await fetch(`${apiUrl}/api/budgets`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            })
+            const response = await api.get(API_URLS.BUDGETS)
 
             if (response.ok) {
                 const data = await response.json()
@@ -74,19 +68,9 @@ export default function BudgetsPage() {
 
     const handleSaveBudget = async (budgetData: Partial<Budget>) => {
         try {
-            const token = localStorage.getItem('access_token')
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-
             if (modalMode === 'create') {
                 // Create new budget
-                const response = await fetch(`${apiUrl}/api/budgets`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(budgetData)
-                })
+                const response = await api.post(API_URLS.BUDGETS, budgetData)
 
                 if (response.ok) {
                     await fetchBudgets() // Refresh the budgets list
@@ -95,14 +79,7 @@ export default function BudgetsPage() {
                 }
             } else {
                 // Update existing budget
-                const response = await fetch(`${apiUrl}/api/budgets/${selectedBudget?.id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(budgetData)
-                })
+                const response = await api.put(getBudgetUrl(selectedBudget?.id || ''), budgetData)
 
                 if (response.ok) {
                     await fetchBudgets() // Refresh the budgets list
@@ -118,15 +95,7 @@ export default function BudgetsPage() {
 
     const handleDeleteBudget = async (budgetId: string) => {
         try {
-            const token = localStorage.getItem('access_token')
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-
-            const response = await fetch(`${apiUrl}/api/budgets/${budgetId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            })
+            const response = await api.delete(getBudgetUrl(budgetId))
 
             if (response.ok) {
                 await fetchBudgets() // Refresh the budgets list
