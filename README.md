@@ -6,15 +6,48 @@ A credit management and spend management web application built with FastAPI, Nex
 
 ```
 takeback/
-├── backend/                 # FastAPI backend
-│   ├── main.py            # Main FastAPI application
-│   ├── requirements.txt   # Python dependencies
-│   └── env.example       # Environment variables template
-├── frontend/              # Next.js frontend
-│   ├── app/              # Next.js app directory
-│   ├── components/       # React components
-│   ├── package.json      # Node.js dependencies
-│   └── env.local         # Frontend environment variables
+├── backend/                 # FastAPI backend (modular structure)
+│   ├── app/                # Main application package
+│   │   ├── main.py         # FastAPI app initialization
+│   │   ├── config/         # Configuration management
+│   │   │   ├── settings.py # Environment variables & config
+│   │   │   └── database.py # Supabase client setup
+│   │   ├── models/         # Pydantic data models
+│   │   │   ├── auth.py     # User authentication models
+│   │   │   ├── budget.py   # Budget models
+│   │   │   ├── card.py     # Card models
+│   │   │   ├── transaction.py # Transaction models
+│   │   │   ├── policy.py   # Policy models
+│   │   │   └── analytics.py # Analytics models
+│   │   ├── services/       # Business logic layer
+│   │   │   ├── auth_service.py     # Authentication logic
+│   │   │   ├── budget_service.py   # Budget business logic
+│   │   │   ├── card_service.py     # Card business logic
+│   │   │   ├── transaction_service.py # Transaction business logic
+│   │   │   ├── policy_service.py   # Policy business logic
+│   │   │   └── analytics_service.py # Analytics business logic
+│   │   ├── api/            # API route handlers
+│   │   │   ├── auth.py     # Authentication endpoints
+│   │   │   ├── budgets.py  # Budget endpoints
+│   │   │   ├── cards.py    # Card endpoints
+│   │   │   ├── transactions.py # Transaction endpoints
+│   │   │   ├── policies.py # Policy endpoints
+│   │   │   └── analytics.py # Analytics endpoints
+│   │   ├── middleware/     # Custom middleware
+│   │   └── utils/          # Utility functions
+│   │       └── jwt.py      # JWT token utilities
+│   ├── run.py              # Development server entry point
+│   ├── deploy.py           # Production deployment entry point
+│   ├── main.py             # Legacy entry point (redirects to run.py)
+│   ├── requirements.txt    # Python dependencies
+│   ├── vercel.json         # Vercel deployment configuration
+│   └── env.example         # Environment variables template
+├── frontend/               # Next.js frontend
+│   ├── app/               # Next.js app directory
+│   ├── components/        # React components
+│   ├── package.json       # Node.js dependencies
+│   ├── vercel.json        # Vercel deployment configuration
+│   └── env.local          # Frontend environment variables
 └── README.md
 ```
 
@@ -29,7 +62,7 @@ takeback/
 
 2. Create a virtual environment:
    ```bash
-   python -m venv venv
+   python3 -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
@@ -45,10 +78,19 @@ takeback/
 
 5. Update the `.env` file with your Supabase credentials and JWT secret.
 
-6. Run the backend:
+6. **Run the backend (Development):**
    ```bash
-   source venv/bin/activate && python main.py
+   # Option 1: Using the run.py script (recommended)
+   python3 run.py
+   
+   # Option 2: Direct uvicorn command
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   
+   # Option 3: Using the legacy main.py (redirects to run.py)
+   python3 main.py
    ```
+
+   The server will start on `http://localhost:8000` with auto-reload enabled.
 
 ### Frontend Setup
 
@@ -68,6 +110,119 @@ takeback/
    ```bash
    npm run dev
    ```
+
+## Deployment
+
+### Backend Deployment (Vercel)
+
+The backend is configured for serverless deployment on Vercel:
+
+1. **Automatic Deployment:**
+   - Push to your main branch triggers automatic deployment
+   - Vercel uses `deploy.py` as the entry point for production
+   - Configuration is in `backend/vercel.json`
+
+2. **Manual Deployment:**
+   ```bash
+   # Install Vercel CLI
+   npm install -g vercel
+   
+   # Deploy from backend directory
+   cd backend
+   vercel --prod
+   ```
+
+3. **Environment Variables:**
+   - Set all required environment variables in Vercel dashboard
+   - Use the same variables as in your `.env` file
+   - Required variables: `SUPABASE_URL`, `SUPABASE_KEY`, `JWT_SECRET`
+
+### Frontend Deployment (Vercel)
+
+The frontend is also configured for Vercel deployment:
+
+1. **Automatic Deployment:**
+   - Push to main branch triggers automatic deployment
+   - Configuration is in `frontend/vercel.json`
+
+2. **Manual Deployment:**
+   ```bash
+   # Deploy from frontend directory
+   cd frontend
+   vercel --prod
+   ```
+
+3. **Environment Variables:**
+   - Set `NEXT_PUBLIC_API_URL` to your backend URL
+   - Configure any other frontend-specific variables
+
+### Deployment Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │    Backend      │
+│   (Vercel)      │◄──►│   (Vercel)      │
+│                 │    │                 │
+│  Next.js App    │    │  FastAPI App    │
+│  Static Hosting │    │ Serverless Fn   │
+└─────────────────┘    └─────────────────┘
+                                │
+                                ▼
+                       ┌─────────────────┐
+                       │   Supabase      │
+                       │   (Database)    │
+                       │   PostgreSQL    │
+                       └─────────────────┘
+```
+
+### Environment Configuration
+
+#### Backend Environment Variables
+```bash
+# Supabase Configuration
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_anon_key
+
+# JWT Configuration
+JWT_SECRET=your_jwt_secret_key
+
+# Application Settings
+PROJECT_NAME=TakeBack
+VERSION=1.0.0
+```
+
+#### Frontend Environment Variables
+```bash
+# API Configuration
+NEXT_PUBLIC_API_URL=https://your-backend-url.vercel.app
+
+# Optional: Analytics
+NEXT_PUBLIC_GA_ID=your_google_analytics_id
+```
+
+## Development vs Production
+
+### Development Mode
+- **Backend**: Uses `run.py` with auto-reload enabled
+- **Frontend**: Uses `npm run dev` with hot reload
+- **Database**: Direct connection to Supabase
+- **Debug**: Full debug statements and error details
+
+### Production Mode
+- **Backend**: Uses `deploy.py` optimized for serverless
+- **Frontend**: Static build with optimized assets
+- **Database**: Same Supabase connection
+- **Debug**: Minimal logging for performance
+
+## API Documentation
+
+Once the backend is running, you can access:
+- **Interactive API Docs**: `http://localhost:8000/docs`
+- **ReDoc Documentation**: `http://localhost:8000/redoc`
+- **Health Check**: `http://localhost:8000/`
+- **Debug Endpoints**: 
+  - `http://localhost:8000/debug/config`
+  - `http://localhost:8000/debug/user/{email}`
 
 ## Database Schema
 
@@ -257,13 +412,3 @@ select * from accounts;
 - Secure SSN input with password field type
 - Visual icons for different field types
 - Responsive design with proper form layout
-
-Bugs:
-
-~~budgets --> spent doesnt mean anything~~ ✅ FIXED - Now calculated from actual transaction data
-
-~~cards --> balance could be updated and budget spents could be visualized~~ ✅ FIXED - Real-time balance calculations with expandable details
-
-dashboard --> 
-
-deployment --> 

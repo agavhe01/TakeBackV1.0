@@ -175,3 +175,4 @@ coverage/
 *.pem
 *.crt
 *.csr 
+.vercel

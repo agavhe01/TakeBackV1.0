@@ -1,3 +1,4 @@
+
 # TakeBack Backend - Modular Structure
 
 ## Overview
@@ -44,9 +45,12 @@ backend/
 │   └── utils/
 │       ├── __init__.py
 │       └── jwt.py              # JWT token utilities
-├── run.py                      # Entry point
+├── run.py                      # Development entry point
+├── deploy.py                   # Production deployment entry point
+├── main.py                     # Legacy entry point (redirects to run.py)
 ├── main_original.py            # Backup of original file
 ├── requirements.txt
+├── vercel.json                 # Vercel deployment configuration
 └── env.example
 ```
 
@@ -114,17 +118,69 @@ backend/
 
 ## Running the Application
 
-### Development
+### Development Mode
 ```bash
 cd backend
+
+# Option 1: Using the run.py script (recommended)
 python3 run.py
+
+# Option 2: Direct uvicorn command
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Option 3: Using the legacy main.py (redirects to run.py)
+python3 main.py
 ```
 
-### Production
+### Production Mode
 ```bash
 cd backend
+
+# For Vercel serverless deployment
+python3 deploy.py
+
+# For traditional server deployment
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+## Deployment
+
+### Vercel Serverless Deployment
+
+The backend is configured for serverless deployment on Vercel:
+
+1. **Entry Point**: `deploy.py` is used for production deployment
+2. **Configuration**: `vercel.json` contains deployment settings
+3. **Environment Variables**: Set in Vercel dashboard
+
+#### Deployment Steps:
+```bash
+# Install Vercel CLI
+npm install -g vercel
+
+# Deploy from backend directory
+cd backend
+vercel --prod
+```
+
+#### Required Environment Variables:
+```bash
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_anon_key
+JWT_SECRET=your_jwt_secret_key
+PROJECT_NAME=TakeBack
+VERSION=1.0.0
+```
+
+### Local Development vs Production
+
+| Aspect | Development | Production |
+|--------|-------------|------------|
+| Entry Point | `run.py` | `deploy.py` |
+| Auto-reload | ✅ Enabled | ❌ Disabled |
+| Debug Logging | ✅ Full | ⚠️ Minimal |
+| Error Details | ✅ Full | ⚠️ Sanitized |
+| Performance | ⚠️ Slower | ✅ Optimized |
 
 ## API Endpoints
 
@@ -190,6 +246,28 @@ python3 run.py
 # Test endpoints
 curl http://localhost:8000/
 curl http://localhost:8000/debug/config
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Import Errors**: Make sure you're running from the backend directory
+2. **Module Not Found**: Check that all `__init__.py` files exist
+3. **Environment Variables**: Verify `.env` file is properly configured
+4. **Database Connection**: Check Supabase credentials in settings
+
+### Debug Commands
+
+```bash
+# Check if app imports correctly
+python3 -c "from app.main import app; print('App imported successfully')"
+
+# Check environment variables
+python3 -c "from app.config.settings import settings; print(f'SUPABASE_URL: {settings.SUPABASE_URL}')"
+
+# Test database connection
+python3 -c "from app.config.database import supabase; print('Database connected')"
 ```
 
 ## Future Enhancements

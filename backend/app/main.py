@@ -1,15 +1,22 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .config.settings import settings
-from .api import auth, budgets, cards, transactions, policies, analytics, card_budgets
+
+# Handle imports for different execution contexts
+try:
+    from .config.settings import settings
+    from .api import auth, budgets, cards, transactions, policies, analytics, card_budgets
+except ImportError:
+    # When running from backend root
+    from app.config.settings import settings
+    from app.api import auth, budgets, cards, transactions, policies, analytics, card_budgets
 
 # Create FastAPI app
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
 
-# Add CORS middleware
+# Add CORS middleware with more permissive settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["*"],  # Allow all origins temporarily
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,7 +43,11 @@ async def root():
 async def debug_config():
     """Debug endpoint to check configuration"""
     print("DEBUG: Config debug endpoint accessed")
-    from .config.database import supabase
+    try:
+        from .config.database import supabase
+    except ImportError:
+        from app.config.database import supabase
+    
     return {
         "supabase_configured": supabase is not None,
         "supabase_url": settings.SUPABASE_URL if settings.SUPABASE_URL != "https://placeholder.supabase.co" else "NOT_SET",
@@ -50,7 +61,11 @@ async def debug_user(email: str):
     print(f"=== DEBUG USER CHECK ===")
     print(f"DEBUG: Checking for user with email: {email}")
     
-    from .config.database import supabase
+    try:
+        from .config.database import supabase
+    except ImportError:
+        from app.config.database import supabase
+    
     if not supabase:
         return {"error": "Supabase not configured"}
     

@@ -26,6 +26,8 @@ class Settings:
         "https://takeback.vercel.app",
         "https://takeback-agavhera.vercel.app/",
         "https://takeback.vercel.app/",
+        "https://takeback-agavhera-8n4fm6hqp-agavhe01s-projects.vercel.app",
+        "https://takeback-agavhera-8n4fm6hqp-agavhe01s-projects.vercel.app/",
         "*"  # Allow all origins for now (minimal security)
     ]
     
@@ -38,5 +40,6 @@ class Settings:
         print(f"DEBUG: SUPABASE_URL configured: {'Yes' if self.SUPABASE_URL != 'https://placeholder.supabase.co' else 'No (using placeholder)'}")
         print(f"DEBUG: SUPABASE_KEY configured: {'Yes' if self.SUPABASE_KEY != 'placeholder_key' else 'No (using placeholder)'}")
         print(f"DEBUG: JWT_SECRET configured: {'Yes' if self.JWT_SECRET != 'placeholder_secret' else 'No (using placeholder)'}")
+        print(f"DEBUG: CORS ALLOWED_ORIGINS: {self.ALLOWED_ORIGINS}")
 
 settings = Settings() 
