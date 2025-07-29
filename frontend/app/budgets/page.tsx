@@ -237,9 +237,6 @@ export default function BudgetsPage() {
                                         Period
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Spent
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Receipts
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -278,12 +275,6 @@ export default function BudgetsPage() {
                                                     {budget.period.charAt(0).toUpperCase() + budget.period.slice(1)}
                                                 </span>
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">
-                                                $0.00 / {formatCurrency(budget.limit_amount)}
-                                            </div>
-                                            <div className="text-sm text-gray-500">0% used</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center space-x-2">
