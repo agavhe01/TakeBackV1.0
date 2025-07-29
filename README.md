@@ -18,50 +18,6 @@ takeback/
 └── README.md
 ```
 
-## Database Schema (Supabase)
-
-### Authentication Tables (Managed by Supabase Auth)
-- `auth.users` - User authentication data
-
-### Public Tables
-```sql
--- Accounts table to store user profile information
-CREATE TABLE public.accounts (
-    id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-    email TEXT NOT NULL,
-    first_name TEXT NOT NULL,
-    last_name TEXT NOT NULL,
-    phone TEXT,
-    nonprofit_name TEXT NOT NULL,
-    ein TEXT NOT NULL,
-    email_updates BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Enable Row Level Security
-ALTER TABLE public.accounts ENABLE ROW LEVEL SECURITY;
-
--- Create policies
-CREATE POLICY "Users can view own account" ON public.accounts
-    FOR SELECT USING (auth.uid() = id);
-
-CREATE POLICY "Users can update own account" ON public.accounts
-    FOR UPDATE USING (auth.uid() = id);
-
-CREATE POLICY "Users can insert own account" ON public.accounts
-    FOR INSERT WITH CHECK (auth.uid() = id);
-```
-
-## Features
-
-- **User Authentication**: Signup and login with Supabase Auth
-- **Profile Management**: Store user data in both auth.users and public.accounts
-- **Modern UI**: Built with Tailwind CSS and Lucide React icons
-- **Form Validation**: React Hook Form with comprehensive validation
-- **Responsive Design**: Mobile-first approach
-- **JWT Tokens**: Secure authentication with JWT tokens
-
 ## Getting Started
 
 ### Backend Setup
@@ -91,7 +47,7 @@ CREATE POLICY "Users can insert own account" ON public.accounts
 
 6. Run the backend:
    ```bash
-   python main.py
+   source venv/bin/activate && python main.py
    ```
 
 ### Frontend Setup
@@ -113,88 +69,10 @@ CREATE POLICY "Users can insert own account" ON public.accounts
    npm run dev
    ```
 
-## Environment Variables
+## Database Schema
 
-### Backend (.env)
-- `SUPABASE_URL`: Your Supabase project URL
-- `SUPABASE_KEY`: Your Supabase anon key
-- `JWT_SECRET`: Secret key for JWT token generation
-
-### Frontend (.env.local)
-- `NEXT_PUBLIC_API_URL`: Backend API URL (e.g., http://localhost:8000)
-- `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anon key
-
-## API Endpoints
-
-- `POST /api/auth/signup` - User registration
-- `POST /api/auth/login` - User login
-- `GET /api/user/profile` - Get user profile (requires authentication)
-
-## Pages
-
-- `/` - Signup page (default route)
-- `/onboarding` - Onboarding page (after successful signup)
-
-## Components
-
-- `SignupPage` - Main signup page layout
-- `SignupForm` - Signup form with validation
-- `FeatureCard` - Feature showcase on signup page
-- `OnboardingPage` - Onboarding page
-- `FormInput` - Reusable form input component
-- `FormButton` - Reusable button component with loading state
-
-## Authentication Flow
-
-1. User fills out signup form
-2. Frontend sends data to backend `/api/auth/signup` endpoint
-3. Backend creates user in Supabase Auth
-4. Backend inserts user data into `public.accounts` table
-5. Backend returns JWT token
-6. Frontend stores token and redirects to onboarding page
-
-## Development
-
-### Backend Development
-- FastAPI with automatic API documentation at `http://localhost:8000/docs`
-- CORS enabled for frontend communication
-- JWT token-based authentication
-- Supabase integration for database and auth
-
-### Frontend Development
-- Next.js 14 with App Router
-- TypeScript for type safety
-- Tailwind CSS for styling
-- React Hook Form for form management
-- Lucide React for icons
-
-## Deployment
-
-### Backend Deployment
-- Can be deployed to any Python hosting service (Railway, Heroku, etc.)
-- Set environment variables in production
-- Use production Supabase credentials
-
-### Frontend Deployment
-- Can be deployed to Vercel, Netlify, or any static hosting
-- Set environment variables in deployment platform
-- Update API URL to production backend URL
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.
-
-
-SQL:-- Enable UUID generation (required for gen_random_uuid)
+```sql
+-- Enable UUID generation (required for gen_random_uuid)
 create extension if not exists "pgcrypto";
 
 -- Drop tables if re-running
@@ -265,6 +143,8 @@ CREATE TABLE policies (
     memo_threshold NUMERIC(10,2),
     memo_prompt TEXT
 );
+```
 
+## Bugs
 
-select * from accounts;
+1. Sign up/in --> password and some fields text not aligned in input field 
