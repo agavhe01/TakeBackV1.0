@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CreditCard, TrendingUp, DollarSign, Users } from 'lucide-react'
+import { CreditCard, TrendingUp, DollarSign, Users, Calendar, Clock } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 
 interface User {
@@ -54,11 +54,35 @@ interface BalanceResponse {
     total_remaining: number
 }
 
+interface SpendingAnalytics {
+    budget_id: string
+    budget_name: string
+    total_spent: number
+    percentage: number
+    color: string
+}
+
+interface RecentTransaction {
+    id: string
+    name: string
+    amount: number
+    date: string
+    card_name: string
+    budget_name: string
+    category?: string
+    merchant?: string
+}
+
 export default function DashboardPage() {
     const router = useRouter()
     const [user, setUser] = useState<User | null>(null)
     const [cards, setCards] = useState<Card[]>([])
     const [balances, setBalances] = useState<BalanceResponse | null>(null)
+    const [spendingAnalytics, setSpendingAnalytics] = useState<SpendingAnalytics[]>([])
+    const [recentTransactions, setRecentTransactions] = useState<RecentTransaction[]>([])
+    const [selectedTimePeriod, setSelectedTimePeriod] = useState('month')
+    const [modalTimePeriod, setModalTimePeriod] = useState('month')
+    const [modalCardData, setModalCardData] = useState<CardBalance | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState('')
     const [selectedCard, setSelectedCard] = useState<CardBalance | null>(null)
@@ -128,12 +152,18 @@ export default function DashboardPage() {
             const token = localStorage.getItem('access_token')
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-            // Fetch cards and balances in parallel
-            const [cardsResponse, balancesResponse] = await Promise.all([
+            // Fetch all data in parallel
+            const [cardsResponse, balancesResponse, analyticsResponse, transactionsResponse] = await Promise.all([
                 fetch(`${apiUrl}/api/cards`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 }),
-                fetch(`${apiUrl}/api/balances`, {
+                fetch(`${apiUrl}/api/balances?period=${selectedTimePeriod}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch(`${apiUrl}/api/analytics/spending?period=${selectedTimePeriod}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch(`${apiUrl}/api/transactions/recent?limit=10`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 })
             ])
@@ -147,8 +177,93 @@ export default function DashboardPage() {
                 const balancesData = await balancesResponse.json()
                 setBalances(balancesData)
             }
+
+            if (analyticsResponse.ok) {
+                const analyticsData = await analyticsResponse.json()
+                setSpendingAnalytics(analyticsData)
+            }
+
+            if (transactionsResponse.ok) {
+                const transactionsData = await transactionsResponse.json()
+                setRecentTransactions(transactionsData)
+            }
         } catch (error) {
             console.error('Error fetching dashboard data:', error)
+        }
+    }
+
+    // Refetch analytics when time period changes
+    useEffect(() => {
+        if (user) {
+            fetchSpendingAnalytics()
+        }
+    }, [selectedTimePeriod])
+
+    // Refetch balances when time period changes
+    useEffect(() => {
+        if (user) {
+            fetchBalances()
+        }
+    }, [selectedTimePeriod])
+
+    const fetchSpendingAnalytics = async () => {
+        try {
+            const token = localStorage.getItem('access_token')
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+            const response = await fetch(`${apiUrl}/api/analytics/spending?period=${selectedTimePeriod}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setSpendingAnalytics(data)
+            }
+        } catch (error) {
+            console.error('Error fetching spending analytics:', error)
+        }
+    }
+
+    const fetchBalances = async () => {
+        try {
+            const token = localStorage.getItem('access_token')
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+            const response = await fetch(`${apiUrl}/api/balances?period=${selectedTimePeriod}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setBalances(data)
+            }
+        } catch (error) {
+            console.error('Error fetching balances:', error)
+        }
+    }
+
+    const fetchCardBalance = async (cardId: string, period: string) => {
+        try {
+            const token = localStorage.getItem('access_token')
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+            const response = await fetch(`${apiUrl}/api/cards/${cardId}/balance?period=${period}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setSelectedCard(data)
+            }
+        } catch (error) {
+            console.error('Error fetching card balance:', error)
+        }
+    }
+
+    const handleModalTimePeriodChange = (newPeriod: string) => {
+        setModalTimePeriod(newPeriod)
+        if (selectedCard) {
+            fetchCardBalance(selectedCard.card_id, newPeriod)
         }
     }
 
@@ -157,6 +272,10 @@ export default function DashboardPage() {
             style: 'currency',
             currency: 'USD'
         }).format(amount)
+    }
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString()
     }
 
     const getBalancePercentage = (spent: number, limit: number) => {
@@ -172,6 +291,7 @@ export default function DashboardPage() {
 
     const handleCardClick = (cardBalance: CardBalance) => {
         setSelectedCard(cardBalance)
+        setModalTimePeriod('month') // Reset to default when opening
         setShowPieChart(true)
     }
 
@@ -208,6 +328,16 @@ export default function DashboardPage() {
         }
 
         return budgetSegments
+    }
+
+    const getTimePeriodLabel = (period: string) => {
+        switch (period) {
+            case 'week': return 'This Week'
+            case 'month': return 'This Month'
+            case 'quarter': return 'This Quarter'
+            case 'year': return 'This Year'
+            default: return 'This Month'
+        }
     }
 
     if (isLoading) {
@@ -261,6 +391,172 @@ export default function DashboardPage() {
                         >
                             Issue Card
                         </button>
+                    </div>
+                </div>
+
+                {/* Top Spending Budgets Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Spending Analytics */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center space-x-3">
+                                <div className="bg-blue-100 p-3 rounded-full">
+                                    <DollarSign className="h-6 w-6 text-blue-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-semibold text-gray-900">Top Spending Budgets</h3>
+                                    <p className="text-sm text-gray-500">Spending distribution by budget</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Calendar className="h-4 w-4 text-gray-400" />
+                                <select
+                                    value={selectedTimePeriod}
+                                    onChange={(e) => setSelectedTimePeriod(e.target.value)}
+                                    className="text-sm border border-gray-300 rounded-md px-2 py-1"
+                                >
+                                    <option value="week">This Week</option>
+                                    <option value="month">This Month</option>
+                                    <option value="quarter">This Quarter</option>
+                                    <option value="year">This Year</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {spendingAnalytics.length > 0 ? (
+                            <div className="space-y-4">
+                                {/* Pie Chart */}
+                                <div className="flex justify-center mb-6">
+                                    <div className="relative w-48 h-48">
+                                        <svg className="w-full h-full" viewBox="0 0 100 100">
+                                            {(() => {
+                                                let currentAngle = 0
+                                                return spendingAnalytics.map((item, index) => {
+                                                    const angle = (item.percentage / 100) * 360
+                                                    const x1 = 50 + 40 * Math.cos(currentAngle * Math.PI / 180)
+                                                    const y1 = 50 + 40 * Math.sin(currentAngle * Math.PI / 180)
+                                                    const x2 = 50 + 40 * Math.cos((currentAngle + angle) * Math.PI / 180)
+                                                    const y2 = 50 + 40 * Math.sin((currentAngle + angle) * Math.PI / 180)
+
+                                                    const largeArcFlag = angle > 180 ? 1 : 0
+
+                                                    const pathData = [
+                                                        `M 50 50`,
+                                                        `L ${x1} ${y1}`,
+                                                        `A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+                                                        'Z'
+                                                    ].join(' ')
+
+                                                    currentAngle += angle
+
+                                                    return (
+                                                        <path
+                                                            key={index}
+                                                            d={pathData}
+                                                            fill={item.color}
+                                                            stroke="white"
+                                                            strokeWidth="1"
+                                                        />
+                                                    )
+                                                })
+                                            })()}
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                {/* Budget Breakdown */}
+                                <div className="space-y-2">
+                                    {spendingAnalytics.map((item, index) => (
+                                        <div key={index} className="flex items-center justify-between text-sm">
+                                            <div className="flex items-center space-x-2">
+                                                <div
+                                                    className="w-3 h-3 rounded-full"
+                                                    style={{ backgroundColor: item.color }}
+                                                ></div>
+                                                <span className="text-gray-700">{item.budget_name}</span>
+                                            </div>
+                                            <div className="flex items-center space-x-4">
+                                                <span className="text-gray-600">{formatCurrency(item.total_spent)}</span>
+                                                <span className="text-green-600 font-medium">
+                                                    {item.percentage.toFixed(1)}%
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-8">
+                                <DollarSign className="mx-auto h-12 w-12 text-gray-400" />
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">No spending data</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    No transactions found for {getTimePeriodLabel(selectedTimePeriod).toLowerCase()}.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Recent Transactions */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center space-x-3">
+                                <div className="bg-green-100 p-3 rounded-full">
+                                    <Clock className="h-6 w-6 text-green-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-semibold text-gray-900">Recent Transactions</h3>
+                                    <p className="text-sm text-gray-500">Latest spending activity</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => router.push('/transactions')}
+                                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                            >
+                                View All
+                            </button>
+                        </div>
+
+                        {recentTransactions.length > 0 ? (
+                            <div className="space-y-3">
+                                {recentTransactions.map((transaction) => (
+                                    <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-900">{transaction.name}</p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {transaction.card_name} • {transaction.budget_name}
+                                                    </p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm font-semibold text-gray-900">
+                                                        {formatCurrency(transaction.amount)}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {formatDate(transaction.date)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {transaction.category && (
+                                                <div className="mt-1">
+                                                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                        {transaction.category}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8">
+                                <Clock className="mx-auto h-12 w-12 text-gray-400" />
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">No recent transactions</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    No transactions found.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -356,7 +652,21 @@ export default function DashboardPage() {
 
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-medium text-gray-900">This Month</h3>
+                                <div className="flex items-center space-x-3">
+                                    <h3 className="text-lg font-medium text-gray-900">
+                                        {getTimePeriodLabel(modalTimePeriod)}
+                                    </h3>
+                                    <select
+                                        value={modalTimePeriod}
+                                        onChange={(e) => handleModalTimePeriodChange(e.target.value)}
+                                        className="text-sm border border-gray-300 rounded-md px-2 py-1"
+                                    >
+                                        <option value="week">This Week</option>
+                                        <option value="month">This Month</option>
+                                        <option value="quarter">This Quarter</option>
+                                        <option value="year">This Year</option>
+                                    </select>
+                                </div>
                                 <div className="flex items-center space-x-2">
                                     <span className="text-sm text-gray-500">Total:</span>
                                     <span className="text-lg font-semibold text-gray-900">
@@ -435,4 +745,4 @@ export default function DashboardPage() {
             )}
         </DashboardLayout>
     )
-} 
+}

@@ -248,6 +248,16 @@ select * from accounts;
 - Navigation to cards page with visual indicators
 - Real-time data fetching from balance calculation APIs
 
+### Personal Settings Management
+- Comprehensive user profile management modal
+- Editable fields: phone, address, ZIP code, SSN
+- Read-only fields: first name, last name, date of birth, email, organization legal name, organization EIN number, account ID, created date
+- Real-time profile updates via API integration
+- Form validation and success feedback
+- Secure SSN input with password field type
+- Visual icons for different field types
+- Responsive design with proper form layout
+
 Bugs:
 
 ~~budgets --> spent doesnt mean anything~~ ✅ FIXED - Now calculated from actual transaction data

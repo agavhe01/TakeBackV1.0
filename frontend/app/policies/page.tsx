@@ -5,7 +5,7 @@ export default function PoliciesPage() {
         <DashboardLayout>
             <div className="p-8">
                 <h1 className="text-2xl font-bold text-gray-900">Policies</h1>
-                <p className="text-gray-600 mt-2">Policies page content will go here.</p>
+                <p className="text-gray-600 mt-2">Policies content here.</p>
             </div>
         </DashboardLayout>
     )

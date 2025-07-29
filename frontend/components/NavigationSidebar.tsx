@@ -14,6 +14,22 @@ import {
     Leaf,
     LogOut
 } from 'lucide-react'
+import PersonalSettingsModal from './PersonalSettingsModal'
+
+interface User {
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+    phone: string
+    date_of_birth?: string
+    address?: string
+    zip_code?: string
+    ssn?: string
+    organization_legal_name: string
+    orginazation_ein_number: string
+    created_at: string
+}
 
 interface NavigationSidebarProps {
     user?: {
@@ -27,6 +43,8 @@ export default function NavigationSidebar({ user }: NavigationSidebarProps) {
     const router = useRouter()
     const pathname = usePathname()
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+    const [isPersonalSettingsOpen, setIsPersonalSettingsOpen] = useState(false)
+    const [userData, setUserData] = useState<User | null>(null)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
     const navigationItems = [
@@ -56,6 +74,31 @@ export default function NavigationSidebar({ user }: NavigationSidebarProps) {
             icon: Shield
         }
     ]
+
+    const fetchUserData = async () => {
+        try {
+            const token = localStorage.getItem('access_token')
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+            const response = await fetch(`${apiUrl}/api/user/profile`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            if (response.ok) {
+                const userData = await response.json()
+                setUserData(userData)
+            }
+        } catch (error) {
+            console.error('Error fetching user data:', error)
+        }
+    }
+
+    const handlePersonalSettings = () => {
+        fetchUserData()
+        setIsPersonalSettingsOpen(true)
+    }
 
     const isActive = (href: string) => {
         if (href === '/dashboard') {
@@ -129,7 +172,7 @@ export default function NavigationSidebar({ user }: NavigationSidebarProps) {
 
             {/* Bottom Section */}
             <div className="p-4 border-t border-gray-200 space-y-2">
-                <button className="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors">
+                <button onClick={handlePersonalSettings} className="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors">
                     <Settings className="h-5 w-5" />
                     <span>Personal Settings</span>
                 </button>
@@ -171,6 +214,7 @@ export default function NavigationSidebar({ user }: NavigationSidebarProps) {
                     </div>
                 )}
             </div>
+            <PersonalSettingsModal isOpen={isPersonalSettingsOpen} onClose={() => setIsPersonalSettingsOpen(false)} user={userData} />
         </div>
     )
 } 
