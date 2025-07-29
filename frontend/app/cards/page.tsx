@@ -22,7 +22,7 @@ interface Card {
 export default function CardsPage() {
     const [cards, setCards] = useState<Card[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<'issued' | 'frozen' | 'cancelled'>('issued')
+    const [activeTab, setActiveTab] = useState<'all' | 'issued' | 'frozen' | 'cancelled'>('all')
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedCard, setSelectedCard] = useState<Card | null>(null)
     const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
@@ -137,7 +137,9 @@ export default function CardsPage() {
         }
     }
 
-    const filteredCards = cards.filter(card => card.status === activeTab)
+    const filteredCards = activeTab === 'all'
+        ? cards
+        : cards.filter(card => card.status === activeTab)
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -186,7 +188,7 @@ export default function CardsPage() {
                 {/* Tabs */}
                 <div className="border-b border-gray-200 mb-6">
                     <div className="flex space-x-8">
-                        {(['issued', 'frozen', 'cancelled'] as const).map((tab) => (
+                        {(['all', 'issued', 'frozen', 'cancelled'] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -199,14 +201,6 @@ export default function CardsPage() {
                             </button>
                         ))}
                     </div>
-                </div>
-
-                {/* Filter */}
-                <div className="mb-6">
-                    <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-800">
-                        <Filter className="h-4 w-4" />
-                        <span className="text-sm">Filter</span>
-                    </button>
                 </div>
 
                 {/* Cards Table */}

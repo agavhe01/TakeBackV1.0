@@ -27,7 +27,7 @@ interface CardModalProps {
 }
 
 export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mode }: CardModalProps) {
-    const [activeTab, setActiveTab] = useState<'overview' | 'edit'>('overview')
+    const [activeTab, setActiveTab] = useState<'overview' | 'edit'>('edit')
     const [formData, setFormData] = useState({
         name: '',
         status: 'issued' as 'issued' | 'frozen' | 'cancelled',
@@ -54,6 +54,7 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                 address: card.address,
                 budget_id: card.budget_id || ''
             })
+            setActiveTab('overview') // Show overview for existing cards
         } else if (mode === 'create') {
             setFormData({
                 name: '',
@@ -65,6 +66,7 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                 address: '',
                 budget_id: ''
             })
+            setActiveTab('edit') // Show edit tab for new cards
         }
     }, [card, mode])
 
@@ -175,33 +177,35 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                     </div>
                 </div>
 
-                {/* Tabs */}
-                <div className="border-b border-gray-200">
-                    <div className="flex space-x-8 px-6">
-                        <button
-                            onClick={() => setActiveTab('overview')}
-                            className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'overview'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
-                                }`}
-                        >
-                            Overview
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('edit')}
-                            className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'edit'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
-                                }`}
-                        >
-                            Edit
-                        </button>
+                {/* Tabs - Only show if card exists */}
+                {card && (
+                    <div className="border-b border-gray-200">
+                        <div className="flex space-x-8 px-6">
+                            <button
+                                onClick={() => setActiveTab('overview')}
+                                className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'overview'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                Overview
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('edit')}
+                                className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'edit'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                Edit
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Content */}
                 <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-                    {activeTab === 'overview' ? (
+                    {activeTab === 'overview' && card ? (
                         <div className="space-y-6">
                             {/* Card Display */}
                             <div>
@@ -209,12 +213,12 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                 <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg p-6 text-white shadow-lg relative">
                                     <div className="flex justify-between items-start mb-6">
                                         <div>
-                                            <h4 className="text-lg font-semibold mb-1">{card?.name || 'Card Name'}</h4>
+                                            <h4 className="text-lg font-semibold mb-1">{card.name}</h4>
                                             <p className="text-blue-200 text-sm">Virtual Card</p>
                                         </div>
                                         <div className="text-right">
                                             <p className="text-sm text-blue-200">Balance</p>
-                                            <p className="text-xl font-bold">${card?.balance?.toFixed(2) || '0.00'}</p>
+                                            <p className="text-xl font-bold">${card.balance?.toFixed(2) || '0.00'}</p>
                                         </div>
                                     </div>
 
@@ -229,7 +233,7 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                                     {showSensitiveInfo ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                                 </button>
                                                 <button
-                                                    onClick={() => copyToClipboard(card?.id || '')}
+                                                    onClick={() => copyToClipboard(card.id)}
                                                     className="text-blue-200 hover:text-white transition-colors"
                                                 >
                                                     <Copy className="h-4 w-4" />
@@ -237,7 +241,7 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                             </div>
                                         </div>
                                         <p className="text-xl font-mono tracking-wider">
-                                            {showSensitiveInfo ? (card?.id ? formatCardNumber(card.id) : '**** **** **** ****') : '•••• •••• •••• ••••'}
+                                            {showSensitiveInfo ? formatCardNumber(card.id) : '•••• •••• •••• ••••'}
                                         </p>
                                     </div>
 
@@ -246,25 +250,25 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                             <div className="flex items-center space-x-2 mb-1">
                                                 <p className="text-blue-200 text-sm">Cardholder</p>
                                                 <button
-                                                    onClick={() => copyToClipboard(card?.cardholder_name || '')}
+                                                    onClick={() => copyToClipboard(card.cardholder_name)}
                                                     className="text-blue-200 hover:text-white transition-colors"
                                                 >
                                                     <Copy className="h-3 w-3" />
                                                 </button>
                                             </div>
-                                            <p className="font-semibold text-sm">{card?.cardholder_name || 'Cardholder Name'}</p>
+                                            <p className="font-semibold text-sm">{card.cardholder_name}</p>
                                         </div>
                                         <div className="text-right">
                                             <div className="flex items-center justify-end space-x-2 mb-1">
                                                 <p className="text-blue-200 text-sm">Expires</p>
                                                 <button
-                                                    onClick={() => copyToClipboard(card?.expiry || '')}
+                                                    onClick={() => copyToClipboard(card.expiry)}
                                                     className="text-blue-200 hover:text-white transition-colors"
                                                 >
                                                     <Copy className="h-3 w-3" />
                                                 </button>
                                             </div>
-                                            <p className="font-semibold text-sm">{card?.expiry || 'MM/YY'}</p>
+                                            <p className="font-semibold text-sm">{card.expiry}</p>
                                         </div>
                                     </div>
 
@@ -273,27 +277,27 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                             <div className="flex items-center space-x-2 mb-1">
                                                 <p className="text-blue-200 text-sm">CVV</p>
                                                 <button
-                                                    onClick={() => copyToClipboard(card?.cvv || '')}
+                                                    onClick={() => copyToClipboard(card.cvv)}
                                                     className="text-blue-200 hover:text-white transition-colors"
                                                 >
                                                     <Copy className="h-3 w-3" />
                                                 </button>
                                             </div>
                                             <p className="font-semibold text-sm">
-                                                {showSensitiveInfo ? (card?.cvv || 'N/A') : '•••'}
+                                                {showSensitiveInfo ? card.cvv : '•••'}
                                             </p>
                                         </div>
                                         <div className="text-right">
                                             <div className="flex items-center justify-end space-x-2 mb-1">
                                                 <p className="text-blue-200 text-sm">ZIP Code</p>
                                                 <button
-                                                    onClick={() => copyToClipboard(card?.zipcode || '')}
+                                                    onClick={() => copyToClipboard(card.zipcode)}
                                                     className="text-blue-200 hover:text-white transition-colors"
                                                 >
                                                     <Copy className="h-3 w-3" />
                                                 </button>
                                             </div>
-                                            <p className="font-semibold text-sm">{card?.zipcode || 'N/A'}</p>
+                                            <p className="font-semibold text-sm">{card.zipcode}</p>
                                         </div>
                                     </div>
 
@@ -301,13 +305,13 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                         <div className="flex items-center space-x-2 mb-1">
                                             <p className="text-blue-200 text-sm">Billing Address</p>
                                             <button
-                                                onClick={() => copyToClipboard(card?.address || '')}
+                                                onClick={() => copyToClipboard(card.address)}
                                                 className="text-blue-200 hover:text-white transition-colors"
                                             >
                                                 <Copy className="h-3 w-3" />
                                             </button>
                                         </div>
-                                        <p className="font-semibold text-sm">{card?.address || 'N/A'}</p>
+                                        <p className="font-semibold text-sm">{card.address}</p>
                                     </div>
                                 </div>
                             </div>
@@ -318,14 +322,14 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">
                                         <span className="text-2xl font-bold text-gray-900">
-                                            ${card?.balance?.toFixed(2) || '0.00'} / $400*
+                                            ${card.balance?.toFixed(2) || '0.00'} / $400*
                                         </span>
                                         <span className="text-sm text-gray-500">All Time</span>
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2">
                                         <div
                                             className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                            style={{ width: `${getBalancePercentage(card?.balance || 0)}%` }}
+                                            style={{ width: `${getBalancePercentage(card.balance || 0)}%` }}
                                         ></div>
                                     </div>
                                 </div>

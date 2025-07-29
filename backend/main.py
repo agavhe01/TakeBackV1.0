@@ -497,6 +497,81 @@ async def get_budgets(token: str = Depends(security)):
         print(f"DEBUG: Get budgets error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.put("/api/budgets/{budget_id}", response_model=BudgetResponse)
+async def update_budget(budget_id: str, budget_data: BudgetCreate, token: str = Depends(security)):
+    print(f"=== UPDATE BUDGET ===")
+    print(f"DEBUG: Received budget update request for budget ID: {budget_id}")
+    
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase not configured.")
+    
+    try:
+        payload = verify_token(token.credentials)
+        user_id = payload.get("sub")
+        print(f"DEBUG: Token verified, user ID: {user_id}")
+        
+        # Verify the budget belongs to the user
+        budget_response = supabase.table("budgets").select("*").eq("id", budget_id).eq("account_id", user_id).execute()
+        
+        if not budget_response.data:
+            raise HTTPException(status_code=404, detail="Budget not found")
+        
+        budget_update_data = {
+            "name": budget_data.name,
+            "limit_amount": budget_data.limit_amount,
+            "period": budget_data.period,
+            "require_receipts": budget_data.require_receipts
+        }
+        
+        print(f"DEBUG: Updating budget with data: {budget_update_data}")
+        
+        response = supabase.table("budgets").update(budget_update_data).eq("id", budget_id).execute()
+        
+        print(f"DEBUG: Update budget response: {response}")
+        
+        if response.data:
+            return BudgetResponse(**response.data[0])
+        else:
+            raise HTTPException(status_code=400, detail="Failed to update budget")
+            
+    except Exception as e:
+        print(f"DEBUG: Update budget error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/budgets/{budget_id}")
+async def delete_budget(budget_id: str, token: str = Depends(security)):
+    print(f"=== DELETE BUDGET ===")
+    print(f"DEBUG: Received budget deletion request for budget ID: {budget_id}")
+    
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase not configured.")
+    
+    try:
+        payload = verify_token(token.credentials)
+        user_id = payload.get("sub")
+        print(f"DEBUG: Token verified, user ID: {user_id}")
+        
+        # Verify the budget belongs to the user
+        budget_response = supabase.table("budgets").select("*").eq("id", budget_id).eq("account_id", user_id).execute()
+        
+        if not budget_response.data:
+            raise HTTPException(status_code=404, detail="Budget not found")
+        
+        print(f"DEBUG: Deleting budget with ID: {budget_id}")
+        
+        response = supabase.table("budgets").delete().eq("id", budget_id).execute()
+        
+        print(f"DEBUG: Delete budget response: {response}")
+        
+        if response.data:
+            return {"message": "Budget deleted successfully"}
+        else:
+            raise HTTPException(status_code=400, detail="Failed to delete budget")
+            
+    except Exception as e:
+        print(f"DEBUG: Delete budget error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
 # Card endpoints
 @app.get("/api/cards", response_model=list[CardResponse])
 async def get_cards(token: str = Depends(security)):
