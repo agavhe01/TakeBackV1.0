@@ -29,7 +29,7 @@
             "headers": [
                 {
                     "key": "Access-Control-Allow-Origin",
-                    "value": "*"
+                    "value": "https://takeback-agavhera.vercel.app"
                 },
                 {
                     "key": "Access-Control-Allow-Methods",
