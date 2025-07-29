@@ -76,12 +76,12 @@ takeback/
 create extension if not exists "pgcrypto";
 
 -- Drop tables if re-running
-DROP TABLE IF EXISTS card_budgets CASCADE;
 DROP TABLE IF EXISTS transactions CASCADE;
 DROP TABLE IF EXISTS cards CASCADE;
 DROP TABLE IF EXISTS budgets CASCADE;
 DROP TABLE IF EXISTS policies CASCADE;
 DROP TABLE IF EXISTS accounts CASCADE;
+DROP TABLE IF EXISTS card_budgets CASCADE;
 
 -- ACCOUNTS: Admin account for each startup
 CREATE TABLE accounts (
@@ -110,7 +110,7 @@ CREATE TABLE budgets (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- CARDS: Issued cards linked to an account
+-- CARDS: Issued cards linked to an account and optional budget
 CREATE TABLE cards (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -122,6 +122,7 @@ CREATE TABLE cards (
     expiry TEXT,
     zipcode TEXT,
     address TEXT,
+    budget_id UUID REFERENCES budgets(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -134,13 +135,18 @@ CREATE TABLE card_budgets (
     UNIQUE(card_id, budget_id)
 );
 
--- TRANSACTIONS: Purchases made using a card
+-- TRANSACTIONS: Purchases made using a specific card-budget combination
 CREATE TABLE transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    card_id UUID NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    card_budget_id UUID NOT NULL REFERENCES card_budgets(id) ON DELETE CASCADE,
     amount NUMERIC(10,2) NOT NULL,
     name TEXT NOT NULL,
-    date TIMESTAMP DEFAULT NOW()
+    description TEXT,
+    category TEXT,
+    merchant TEXT,
+    receipt_url TEXT,
+    date TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- POLICIES: Optional per-account settings for memo thresholds
@@ -152,6 +158,17 @@ CREATE TABLE policies (
     memo_threshold NUMERIC(10,2),
     memo_prompt TEXT
 );
+
+
+-- Create indexes for better performance
+CREATE INDEX idx_transactions_card_budget_id ON transactions(card_budget_id);
+CREATE INDEX idx_transactions_date ON transactions(date);
+CREATE INDEX idx_card_budgets_card_id ON card_budgets(card_id);
+CREATE INDEX idx_card_budgets_budget_id ON card_budgets(budget_id);
+
+select * from accounts;
+
+
 ```
 
 ## Features
@@ -168,9 +185,9 @@ CREATE TABLE policies (
 - View budget breakdown for each card
 
 ### Transaction Tracking
-- Record transactions against specific cards
-- Track spending against budget limits
-- Monitor spending patterns and trends
+- Record transactions against specific card-budget combinations
+- Add, edit, and delete transactions
+- Track spending against budget limits and by budget breakdown
 
 ## API Endpoints
 
@@ -186,6 +203,12 @@ CREATE TABLE policies (
 - `PUT /api/budgets/{budget_id}` - Update a budget
 - `DELETE /api/budgets/{budget_id}` - Delete a budget
 
+### Transactions
+- `GET /api/transactions` - Get all transactions (optionally filter by card, budget, or card_budget)
+- `POST /api/transactions` - Create a new transaction (requires card_budget_id)
+- `PUT /api/transactions/{transaction_id}` - Update a transaction
+- `DELETE /api/transactions/{transaction_id}` - Delete a transaction
+
 ## Recent Updates
 
 ### Multiple Budgets per Card
@@ -193,3 +216,20 @@ CREATE TABLE policies (
 - Total spending limit is calculated as the sum of all associated budgets
 - Budget breakdown is displayed in the cards dashboard
 - Card creation/editing modal shows selectable budgets as checkboxes
+
+### Transactions Linked to Card-Budget
+- Transactions now reference a unique card-budget combination
+- Transaction CRUD supported via API and UI
+- Transactions can be filtered and managed by card, budget, or both
+
+
+
+Bugs:
+
+budgets --> spent doesnt mean anything
+
+cards --> balance coult be updated and budget spents could be visualized
+
+dashboard -->
+
+deployment --> 

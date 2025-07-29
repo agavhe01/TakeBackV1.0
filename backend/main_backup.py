@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Header, Query
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from pydantic import BaseModel
@@ -136,24 +136,16 @@ class CardResponse(BaseModel):
     created_at: str
 
 class TransactionCreate(BaseModel):
-    card_budget_id: str
+    card_id: str
     amount: float
     name: str
-    date: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[str] = None
 
 class TransactionResponse(BaseModel):
     id: str
-    card_budget_id: str
+    card_id: str
     amount: float
     name: str
     date: str
-    description: Optional[str] = None
-    category: Optional[str] = None
-    # Optionally include related card and budget info for frontend enrichment
-    card_id: Optional[str] = None
-    budget_id: Optional[str] = None
 
 class PolicyCreate(BaseModel):
     name: str
@@ -507,7 +499,7 @@ async def get_budgets(token: str = Depends(security)):
         payload = verify_token(token.credentials)
         user_id = payload.get("sub")
         
-        response = supabase.table("budgets").select("*").eq("account_id", user_id).order("created_at", desc=True).execute()
+        response = supabase.table("budgets").select("*").eq("account_id", user_id).execute()
         
         return [BudgetResponse(**budget) for budget in response.data]
         
@@ -794,154 +786,53 @@ async def create_transaction(transaction_data: TransactionCreate, token: str = D
         payload = verify_token(token.credentials)
         user_id = payload.get("sub")
         
-        # Extract card_budget_id from the transaction_data
-        card_budget_id = transaction_data.card_budget_id
-        
-        # Verify the card_budget_id belongs to the user
-        card_budget_response = supabase.table("card_budgets").select("card_id, budget_id").eq("id", card_budget_id).execute()
-        
-        if not card_budget_response.data:
-            raise HTTPException(status_code=403, detail="Card-Budget combination not found")
-        
-        # Get card and budget IDs from the verified card_budget_id
-        card_id = card_budget_response.data[0]["card_id"]
-        budget_id = card_budget_response.data[0]["budget_id"]
-        
         # Verify the card belongs to the user
-        card_response = supabase.table("cards").select("account_id").eq("id", card_id).execute()
+        card_response = supabase.table("cards").select("account_id").eq("id", transaction_data.card_id).execute()
+        
         if not card_response.data or card_response.data[0]["account_id"] != user_id:
             raise HTTPException(status_code=403, detail="Card not found or access denied")
         
         transaction_insert_data = {
-            "card_budget_id": card_budget_id,
+            "card_id": transaction_data.card_id,
             "amount": transaction_data.amount,
             "name": transaction_data.name,
-            "date": transaction_data.date if transaction_data.date else datetime.utcnow().isoformat(),
-            "description": transaction_data.description,
-            "category": transaction_data.category
+            "date": datetime.utcnow().isoformat()
         }
         
-        print(f"DEBUG: Inserting transaction data: {transaction_insert_data}")
         response = supabase.table("transactions").insert(transaction_insert_data).execute()
         
-        print(f"DEBUG: Insert response: {response}")
-        
         if response.data:
-            # Enrich response with card and budget IDs
-            transaction_data = response.data[0]
-            return TransactionResponse(**transaction_data, card_id=card_id, budget_id=budget_id)
+            return TransactionResponse(**response.data[0])
         else:
-            print(f"DEBUG: No data returned from insert")
             raise HTTPException(status_code=400, detail="Failed to create transaction")
             
     except Exception as e:
         print(f"DEBUG: Transaction creation error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.put("/api/transactions/{transaction_id}", response_model=TransactionResponse)
-async def update_transaction(transaction_id: str, transaction_data: TransactionCreate, token: str = Depends(security)):
-    print(f"=== UPDATE TRANSACTION ===")
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Supabase not configured.")
-    try:
-        payload = verify_token(token.credentials)
-        user_id = payload.get("sub")
-        # Validate card_budget_id ownership
-        card_budget_response = supabase.table("card_budgets").select("card_id, budget_id").eq("id", transaction_data.card_budget_id).execute()
-        if not card_budget_response.data:
-            raise HTTPException(status_code=403, detail="Card or Budget not found or access denied")
-        card_id = card_budget_response.data[0]["card_id"]
-        # Check card ownership
-        card_response = supabase.table("cards").select("account_id").eq("id", card_id).execute()
-        if not card_response.data or card_response.data[0]["account_id"] != user_id:
-            raise HTTPException(status_code=403, detail="Card not found or access denied")
-        update_data = {
-            "card_budget_id": transaction_data.card_budget_id,
-            "amount": transaction_data.amount,
-            "name": transaction_data.name,
-            "date": transaction_data.date if transaction_data.date else datetime.utcnow().isoformat(),
-            "description": transaction_data.description,
-            "category": transaction_data.category
-        }
-        response = supabase.table("transactions").update(update_data).eq("id", transaction_id).execute()
-        if response.data:
-            # Enrich response
-            card_budget_response = supabase.table("card_budgets").select("card_id, budget_id").eq("id", response.data[0]["card_budget_id"]).execute()
-            card_id = card_budget_response.data[0]["card_id"] if card_budget_response.data else None
-            budget_id = card_budget_response.data[0]["budget_id"] if card_budget_response.data else None
-            return TransactionResponse(**response.data[0], card_id=card_id, budget_id=budget_id)
-        else:
-            raise HTTPException(status_code=400, detail="Failed to update transaction")
-    except Exception as e:
-        print(f"DEBUG: Update transaction error: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-
-@app.delete("/api/transactions/{transaction_id}")
-async def delete_transaction(transaction_id: str, token: str = Depends(security)):
-    print(f"=== DELETE TRANSACTION ===")
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Supabase not configured.")
-    try:
-        payload = verify_token(token.credentials)
-        user_id = payload.get("sub")
-        # Fetch transaction to validate ownership
-        transaction_response = supabase.table("transactions").select("card_budget_id").eq("id", transaction_id).execute()
-        if not transaction_response.data:
-            raise HTTPException(status_code=404, detail="Transaction not found")
-        card_budget_id = transaction_response.data[0]["card_budget_id"]
-        card_budget_response = supabase.table("card_budgets").select("card_id").eq("id", card_budget_id).execute()
-        if not card_budget_response.data:
-            raise HTTPException(status_code=403, detail="Card or Budget not found or access denied")
-        card_id = card_budget_response.data[0]["card_id"]
-        card_response = supabase.table("cards").select("account_id").eq("id", card_id).execute()
-        if not card_response.data or card_response.data[0]["account_id"] != user_id:
-            raise HTTPException(status_code=403, detail="Card not found or access denied")
-        # Delete transaction
-        supabase.table("transactions").delete().eq("id", transaction_id).execute()
-        return {"detail": "Transaction deleted successfully"}
-    except Exception as e:
-        print(f"DEBUG: Delete transaction error: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-
 @app.get("/api/transactions", response_model=list[TransactionResponse])
-async def get_transactions(
-    token: str = Depends(security),
-    card_id: str = Query(None),
-    budget_id: str = Query(None),
-    card_budget_id: str = Query(None)
-):
-    print(f"=== GET TRANSACTIONS (with filters) ===")
+async def get_transactions(token: str = Depends(security)):
+    print(f"=== GET TRANSACTIONS ===")
+    
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase not configured.")
+    
     try:
         payload = verify_token(token.credentials)
         user_id = payload.get("sub")
-        # Get all card_budgets for the user
-        card_budgets_query = supabase.table("card_budgets").select("id, card_id, budget_id")
-        card_budgets_response = card_budgets_query.execute()
-        card_budget_map = {cb["id"]: cb for cb in card_budgets_response.data}
-        # Filter card_budgets by user ownership
-        user_card_ids = [c["id"] for c in supabase.table("cards").select("id, account_id").eq("account_id", user_id).execute().data]
-        user_card_budget_ids = [cbid for cbid, cb in card_budget_map.items() if cb["card_id"] in user_card_ids]
-        # Apply filters
-        filtered_card_budget_ids = user_card_budget_ids
-        if card_id:
-            filtered_card_budget_ids = [cbid for cbid in filtered_card_budget_ids if card_budget_map[cbid]["card_id"] == card_id]
-        if budget_id:
-            filtered_card_budget_ids = [cbid for cbid in filtered_card_budget_ids if card_budget_map[cbid]["budget_id"] == budget_id]
-        if card_budget_id:
-            filtered_card_budget_ids = [cbid for cbid in filtered_card_budget_ids if cbid == card_budget_id]
-        if not filtered_card_budget_ids:
+        
+        # Get all cards for the user first
+        cards_response = supabase.table("cards").select("id").eq("account_id", user_id).execute()
+        card_ids = [card["id"] for card in cards_response.data]
+        
+        if not card_ids:
             return []
-        # Get transactions for filtered card_budget_ids
-        response = supabase.table("transactions").select("*").in_("card_budget_id", filtered_card_budget_ids).execute()
-        transactions_with_details = []
-        for transaction in response.data:
-            cb = card_budget_map.get(transaction["card_budget_id"])
-            card_id = cb["card_id"] if cb else None
-            budget_id = cb["budget_id"] if cb else None
-            transactions_with_details.append({**transaction, "card_id": card_id, "budget_id": budget_id})
-        return [TransactionResponse(**t) for t in transactions_with_details]
+        
+        # Get transactions for all user's cards
+        response = supabase.table("transactions").select("*").in_("card_id", card_ids).execute()
+        
+        return [TransactionResponse(**transaction) for transaction in response.data]
+        
     except Exception as e:
         print(f"DEBUG: Get transactions error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -995,44 +886,6 @@ async def get_policies(token: str = Depends(security)):
         
     except Exception as e:
         print(f"DEBUG: Get policies error: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-
-# Card-Budget endpoints
-@app.get("/api/card-budgets")
-async def get_card_budgets(token: str = Depends(security)):
-    print(f"=== GET CARD BUDGETS ===")
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Supabase not configured.")
-    try:
-        payload = verify_token(token.credentials)
-        user_id = payload.get("sub")
-        
-        # Get all card_budgets for the user's cards
-        response = supabase.table("card_budgets").select("id, card_id, budget_id").execute()
-        
-        if response.data:
-            # Get card and budget details for each card_budget
-            card_budgets_with_details = []
-            for cb in response.data:
-                # Get card details
-                card_response = supabase.table("cards").select("name, account_id").eq("id", cb["card_id"]).execute()
-                if card_response.data and card_response.data[0]["account_id"] == user_id:
-                    # Get budget details
-                    budget_response = supabase.table("budgets").select("name").eq("id", cb["budget_id"]).execute()
-                    if budget_response.data:
-                        card_budgets_with_details.append({
-                            "id": cb["id"],
-                            "card_id": cb["card_id"],
-                            "budget_id": cb["budget_id"],
-                            "card_name": card_response.data[0]["name"],
-                            "budget_name": budget_response.data[0]["name"]
-                        })
-            
-            return card_budgets_with_details
-        else:
-            return []
-    except Exception as e:
-        print(f"DEBUG: Get card budgets error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/")

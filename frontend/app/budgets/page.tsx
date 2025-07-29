@@ -22,6 +22,7 @@ export default function BudgetsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null)
     const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
+    const [recentBudget, setRecentBudget] = useState<Budget | null>(null)
 
     useEffect(() => {
         fetchBudgets()
@@ -40,7 +41,15 @@ export default function BudgetsPage() {
 
             if (response.ok) {
                 const data = await response.json()
-                setBudgets(data)
+                // Sort by created_at in descending order to ensure most recent first
+                const sortedData = data.sort((a: Budget, b: Budget) =>
+                    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                )
+                setBudgets(sortedData)
+                // Set the most recent budget (first in the sorted list)
+                if (sortedData.length > 0) {
+                    setRecentBudget(sortedData[0])
+                }
             } else {
                 console.error('Failed to fetch budgets')
             }
@@ -349,6 +358,7 @@ export default function BudgetsPage() {
                 onSave={handleSaveBudget}
                 onDelete={handleDeleteBudget}
                 mode={modalMode}
+                recentBudget={recentBudget}
             />
         </DashboardLayout>
     )

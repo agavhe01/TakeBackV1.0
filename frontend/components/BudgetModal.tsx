@@ -20,9 +20,10 @@ interface BudgetModalProps {
     onSave: (budgetData: Partial<Budget>) => Promise<void>
     onDelete?: (budgetId: string) => Promise<void>
     mode: 'create' | 'edit'
+    recentBudget?: Budget | null // Add this prop for recent budget data
 }
 
-export default function BudgetModal({ isOpen, onClose, budget, onSave, onDelete, mode }: BudgetModalProps) {
+export default function BudgetModal({ isOpen, onClose, budget, onSave, onDelete, mode, recentBudget }: BudgetModalProps) {
     const [activeTab, setActiveTab] = useState<'overview' | 'edit'>('edit')
     const [formData, setFormData] = useState({
         name: '',
@@ -43,15 +44,25 @@ export default function BudgetModal({ isOpen, onClose, budget, onSave, onDelete,
             })
             setActiveTab('overview') // Show overview for existing budgets
         } else if (mode === 'create') {
-            setFormData({
-                name: '',
-                limit_amount: '', // Start with empty string instead of 0
-                period: 'monthly',
-                require_receipts: false
-            })
+            // Pre-set with recent budget parameters if available
+            if (recentBudget) {
+                setFormData({
+                    name: '',
+                    limit_amount: recentBudget.limit_amount,
+                    period: recentBudget.period,
+                    require_receipts: recentBudget.require_receipts
+                })
+            } else {
+                setFormData({
+                    name: '',
+                    limit_amount: '', // Start with empty string instead of 0
+                    period: 'monthly',
+                    require_receipts: false
+                })
+            }
             setActiveTab('edit') // Show edit tab for new budgets
         }
-    }, [budget, mode])
+    }, [budget, mode, recentBudget])
 
     const handleSave = async () => {
         setIsLoading(true)
