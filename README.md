@@ -238,6 +238,16 @@ select * from accounts;
 - Color-coded progress indicators (green/yellow/red based on usage percentage)
 - Real-time balance fetching in card modals with detailed breakdown
 
+### Interactive Dashboard
+- Personalized welcome message with user's first name
+- Quick action buttons for "Manage Payments" and "Issue Card"
+- Account balances section with visual progress bars for each card
+- Clickable card balances that open detailed pie chart modals
+- Interactive pie charts showing budget breakdown with percentages
+- Cards summary section with count of active cards
+- Navigation to cards page with visual indicators
+- Real-time data fetching from balance calculation APIs
+
 Bugs:
 
 ~~budgets --> spent doesnt mean anything~~ ✅ FIXED - Now calculated from actual transaction data
