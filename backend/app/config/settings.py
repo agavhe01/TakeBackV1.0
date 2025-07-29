@@ -22,7 +22,10 @@ class Settings:
     # CORS Configuration
     ALLOWED_ORIGINS = [
         "http://localhost:3000",
-        "https://your-frontend-domain.vercel.app",
+        "https://takeback-agavhera.vercel.app",
+        "https://takeback.vercel.app",
+        "https://takeback-agavhera.vercel.app/",
+        "https://takeback.vercel.app/",
         "*"  # Allow all origins for now (minimal security)
     ]
     
