@@ -35,6 +35,24 @@ interface CardModalProps {
     mode: 'create' | 'edit'
 }
 
+interface BudgetBalance {
+    budget_id: string
+    budget_name: string
+    limit_amount: number
+    spent_amount: number
+    remaining_amount: number
+    period: string
+}
+
+interface CardBalance {
+    card_id: string
+    card_name: string
+    total_spent: number
+    total_limit: number
+    remaining_amount: number
+    budget_balances: BudgetBalance[]
+}
+
 export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mode }: CardModalProps) {
     const [activeTab, setActiveTab] = useState<'overview' | 'edit'>('edit')
     const [formData, setFormData] = useState({
@@ -52,12 +70,17 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
     const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false)
     const [availableBudgets, setAvailableBudgets] = useState<Budget[]>([])
     const [isLoadingBudgets, setIsLoadingBudgets] = useState(false)
+    const [cardBalance, setCardBalance] = useState<CardBalance | null>(null)
+    const [isLoadingBalance, setIsLoadingBalance] = useState(false)
 
     useEffect(() => {
         if (isOpen) {
             fetchBudgets()
+            if (card && mode === 'edit') {
+                fetchCardBalance()
+            }
         }
-    }, [isOpen])
+    }, [isOpen, card, mode])
 
     useEffect(() => {
         if (card && mode === 'edit') {
@@ -109,6 +132,31 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
             console.error('Error fetching budgets:', error)
         } finally {
             setIsLoadingBudgets(false)
+        }
+    }
+
+    const fetchCardBalance = async () => {
+        setIsLoadingBalance(true)
+        try {
+            const token = localStorage.getItem('access_token')
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+            const response = await fetch(`${apiUrl}/api/cards/${card?.id}/balance`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            if (response.ok) {
+                const data: CardBalance = await response.json()
+                setCardBalance(data)
+            } else {
+                console.error('Failed to fetch card balance')
+            }
+        } catch (error) {
+            console.error('Error fetching card balance:', error)
+        } finally {
+            setIsLoadingBalance(false)
         }
     }
 
@@ -383,73 +431,83 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                             {/* Balance */}
                             <div>
                                 <h3 className="text-lg font-medium text-gray-900 mb-4">Balance</h3>
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-2xl font-bold text-gray-900">
-                                            ${card.balance?.toFixed(2) || '0.00'} / {formatCurrency(calculateTotalBalance())}
-                                        </span>
-                                        <span className="text-sm text-gray-500">Total Budget</span>
+                                {isLoadingBalance ? (
+                                    <div className="text-center py-4">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                                        <p className="text-sm text-gray-500 mt-2">Loading balance...</p>
                                     </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                        <div
-                                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                            style={{ width: `${getBalancePercentage(card.balance || 0, calculateTotalBalance())}%` }}
-                                        ></div>
-                                    </div>
+                                ) : cardBalance ? (
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-2xl font-bold text-gray-900">
+                                                {formatCurrency(cardBalance.total_spent)} / {formatCurrency(cardBalance.total_limit)}
+                                            </span>
+                                            <span className="text-sm text-gray-500">Total Budget</span>
+                                        </div>
 
-                                    {/* Budget Breakdown */}
-                                    {card.budget_ids && card.budget_ids.length > 0 && (
-                                        <div className="mt-4">
-                                            <h4 className="text-sm font-medium text-gray-900 mb-2">Budget Breakdown</h4>
-                                            <div className="space-y-2">
-                                                {availableBudgets
-                                                    .filter(budget => card.budget_ids.includes(budget.id))
-                                                    .map(budget => (
-                                                        <div key={budget.id} className="flex justify-between items-center text-sm">
-                                                            <span className="text-gray-600">{budget.name}</span>
-                                                            <span className="font-medium">{formatCurrency(budget.limit_amount)}</span>
-                                                        </div>
-                                                    ))}
+                                        {/* Total Balance Progress Bar */}
+                                        <div className="w-full bg-gray-200 rounded-full h-3">
+                                            <div
+                                                className={`h-3 rounded-full transition-all duration-300 ${cardBalance.remaining_amount < 0 ? 'bg-red-500' : 'bg-blue-600'
+                                                    }`}
+                                                style={{ width: `${Math.min((cardBalance.total_spent / cardBalance.total_limit) * 100, 100)}%` }}
+                                            ></div>
+                                        </div>
+
+                                        {/* Remaining Amount Indicator */}
+                                        <div className="text-center">
+                                            <span className={`text-lg font-semibold ${cardBalance.remaining_amount >= 0 ? 'text-green-600' : 'text-red-600'
+                                                }`}>
+                                                {cardBalance.remaining_amount >= 0 ? '+' : ''}{formatCurrency(cardBalance.remaining_amount)} remaining
+                                            </span>
+                                        </div>
+
+                                        {/* Budget Breakdown with Visual Indicators */}
+                                        {cardBalance.budget_balances.length > 0 && (
+                                            <div className="mt-6">
+                                                <h4 className="text-sm font-medium text-gray-900 mb-3">Budget Breakdown</h4>
+                                                <div className="space-y-3">
+                                                    {cardBalance.budget_balances.map((budgetBalance) => {
+                                                        const percentageUsed = (budgetBalance.spent_amount / budgetBalance.limit_amount) * 100;
+
+                                                        return (
+                                                            <div key={budgetBalance.budget_id} className="border border-gray-200 rounded-lg p-3">
+                                                                <div className="flex justify-between items-center mb-2">
+                                                                    <span className="text-sm font-medium text-gray-900">{budgetBalance.budget_name}</span>
+                                                                    <span className="text-sm text-gray-600">
+                                                                        {formatCurrency(budgetBalance.spent_amount)} / {formatCurrency(budgetBalance.limit_amount)}
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Individual Budget Progress Bar */}
+                                                                <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                                                                    <div
+                                                                        className={`h-2 rounded-full transition-all duration-300 ${percentageUsed > 90 ? 'bg-red-500' :
+                                                                                percentageUsed > 75 ? 'bg-yellow-500' : 'bg-green-500'
+                                                                            }`}
+                                                                        style={{ width: `${Math.min(percentageUsed, 100)}%` }}
+                                                                    ></div>
+                                                                </div>
+
+                                                                <div className="flex justify-between items-center text-xs">
+                                                                    <span className={`font-medium ${budgetBalance.remaining_amount >= 0 ? 'text-green-600' : 'text-red-600'
+                                                                        }`}>
+                                                                        {budgetBalance.remaining_amount >= 0 ? '+' : ''}{formatCurrency(budgetBalance.remaining_amount)} remaining
+                                                                    </span>
+                                                                    <span className="text-gray-500">{budgetBalance.period}</span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Spend Policy */}
-                            <div>
-                                <h3 className="text-lg font-medium text-gray-900 mb-4">Spend Policy</h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <h4 className="text-sm font-medium text-gray-900 mb-2">Base Policy</h4>
-                                        <div className="flex items-center space-x-2">
-                                            <input type="checkbox" className="rounded" />
-                                            <span className="text-sm text-gray-600">Memo Required</span>
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-1">For purchases over $75</p>
+                                        )}
                                     </div>
-                                </div>
-                            </div>
-
-                            {/* Spend Control */}
-                            <div>
-                                <h3 className="text-lg font-medium text-gray-900 mb-4">Spend Control</h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <h4 className="text-sm font-medium text-gray-900 mb-2">Allowed Categories</h4>
-                                        <div className="flex items-center space-x-2">
-                                            <input type="checkbox" checked className="rounded" />
-                                            <span className="text-sm text-gray-600">All</span>
-                                        </div>
+                                ) : (
+                                    <div className="text-center py-4">
+                                        <p className="text-sm text-gray-500">No balance information available</p>
                                     </div>
-                                    <div>
-                                        <h4 className="text-sm font-medium text-gray-900 mb-2">Allowed Budgets</h4>
-                                        <div className="flex items-center space-x-2">
-                                            <input type="checkbox" checked className="rounded" />
-                                            <span className="text-sm text-gray-600">All</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     ) : (

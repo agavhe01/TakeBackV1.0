@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, CreditCard, Filter } from 'lucide-react'
+import { Plus, CreditCard, Filter, ChevronDown, ChevronRight } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import CardModal from '../../components/CardModal'
 
@@ -28,18 +28,46 @@ interface Card {
     created_at: string
 }
 
+interface BudgetBalance {
+    budget_id: string
+    budget_name: string
+    limit_amount: number
+    spent_amount: number
+    remaining_amount: number
+    period: string
+}
+
+interface CardBalance {
+    card_id: string
+    card_name: string
+    total_spent: number
+    total_limit: number
+    remaining_amount: number
+    budget_balances: BudgetBalance[]
+}
+
+interface BalanceResponse {
+    card_balances: CardBalance[]
+    total_spent: number
+    total_limit: number
+    total_remaining: number
+}
+
 export default function CardsPage() {
     const [cards, setCards] = useState<Card[]>([])
     const [budgets, setBudgets] = useState<Budget[]>([])
+    const [balances, setBalances] = useState<BalanceResponse | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [activeTab, setActiveTab] = useState<'all' | 'issued' | 'frozen' | 'cancelled'>('all')
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedCard, setSelectedCard] = useState<Card | null>(null)
     const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
+    const [expandedBalances, setExpandedBalances] = useState<Set<string>>(new Set())
 
     useEffect(() => {
         fetchCards()
         fetchBudgets()
+        fetchBalances()
     }, [])
 
     const fetchCards = async () => {
@@ -85,6 +113,28 @@ export default function CardsPage() {
             }
         } catch (error) {
             console.error('Error fetching budgets:', error)
+        }
+    }
+
+    const fetchBalances = async () => {
+        try {
+            const token = localStorage.getItem('access_token')
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+            const response = await fetch(`${apiUrl}/api/balances`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setBalances(data)
+            } else {
+                console.error('Failed to fetch balances')
+            }
+        } catch (error) {
+            console.error('Error fetching balances:', error)
         }
     }
 
@@ -203,6 +253,28 @@ export default function CardsPage() {
         return name.split(' ').map(n => n.charAt(0)).join('').toUpperCase()
     }
 
+    const getCardBalance = (cardId: string) => {
+        if (!balances) return null
+        return balances.card_balances.find(balance => balance.card_id === cardId)
+    }
+
+    const toggleBalanceExpansion = (cardId: string) => {
+        const newExpanded = new Set(expandedBalances)
+        if (newExpanded.has(cardId)) {
+            newExpanded.delete(cardId)
+        } else {
+            newExpanded.add(cardId)
+        }
+        setExpandedBalances(newExpanded)
+    }
+
+    const getBudgetDisplayName = (card: Card) => {
+        const cardBudgets = getCardBudgets(card)
+        if (cardBudgets.length === 0) return 'No budgets assigned'
+        if (cardBudgets.length === 1) return cardBudgets[0].name
+        return `${cardBudgets.length} budgets`
+    }
+
     if (isLoading) {
         return (
             <DashboardLayout>
@@ -267,9 +339,6 @@ export default function CardsPage() {
                                         Budget
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Categories
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Status
                                     </th>
                                 </tr>
@@ -292,10 +361,69 @@ export default function CardsPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">
-                                                {formatCurrency(card.balance)} / {formatCurrency(getTotalBudgetAmount(card))}
-                                            </div>
-                                            <div className="text-sm text-gray-500">
-                                                {getCardBudgets(card).length > 0 ? `${getCardBudgets(card).length} budget${getCardBudgets(card).length > 1 ? 's' : ''}` : 'No budgets'}
+                                                {(() => {
+                                                    const cardBalance = getCardBalance(card.id)
+                                                    if (cardBalance) {
+                                                        return (
+                                                            <div>
+                                                                <div className="flex items-center space-x-2">
+                                                                    <span>{formatCurrency(cardBalance.total_spent)} / {formatCurrency(cardBalance.total_limit)}</span>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            toggleBalanceExpansion(card.id)
+                                                                        }}
+                                                                        className="text-gray-400 hover:text-gray-600"
+                                                                    >
+                                                                        {expandedBalances.has(card.id) ? (
+                                                                            <ChevronDown className="h-4 w-4" />
+                                                                        ) : (
+                                                                            <ChevronRight className="h-4 w-4" />
+                                                                        )}
+                                                                    </button>
+                                                                </div>
+                                                                <div className="text-sm text-gray-500">
+                                                                    {cardBalance.remaining_amount >= 0 ? (
+                                                                        <span className="text-green-600">
+                                                                            ${cardBalance.remaining_amount.toFixed(2)} remaining
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-red-600">
+                                                                            ${Math.abs(cardBalance.remaining_amount).toFixed(2)} over limit
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                {expandedBalances.has(card.id) && (
+                                                                    <div className="mt-2 p-2 bg-gray-50 rounded border">
+                                                                        <div className="text-xs font-medium text-gray-700 mb-1">Budget Breakdown:</div>
+                                                                        {cardBalance.budget_balances.map((budgetBalance) => (
+                                                                            <div key={budgetBalance.budget_id} className="flex justify-between items-center text-xs py-1">
+                                                                                <span className="text-gray-600">{budgetBalance.budget_name}</span>
+                                                                                <div className="flex items-center space-x-2">
+                                                                                    <span>{formatCurrency(budgetBalance.spent_amount)} / {formatCurrency(budgetBalance.limit_amount)}</span>
+                                                                                    <span className={`text-xs ${budgetBalance.remaining_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                                                        {budgetBalance.remaining_amount >= 0 ? '+' : ''}{formatCurrency(budgetBalance.remaining_amount)}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )
+                                                    } else {
+                                                        return (
+                                                            <div>
+                                                                <div className="text-sm text-gray-900">
+                                                                    {formatCurrency(card.balance)} / {formatCurrency(getTotalBudgetAmount(card))}
+                                                                </div>
+                                                                <div className="text-sm text-gray-500">
+                                                                    {getCardBudgets(card).length > 0 ? `${getCardBudgets(card).length} budget${getCardBudgets(card).length > 1 ? 's' : ''}` : 'No budgets'}
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    }
+                                                })()}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -317,28 +445,8 @@ export default function CardsPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">
-                                                {getCardBudgets(card).length > 0 ? (
-                                                    <div className="space-y-1">
-                                                        {getCardBudgets(card).map(budget => (
-                                                            <div key={budget.id} className="flex justify-between items-center">
-                                                                <span className="text-gray-600">{budget.name}</span>
-                                                                <span className="font-medium">{formatCurrency(budget.limit_amount)}</span>
-                                                            </div>
-                                                        ))}
-                                                        <div className="border-t pt-1 mt-1">
-                                                            <div className="flex justify-between items-center font-medium">
-                                                                <span>Total</span>
-                                                                <span>{formatCurrency(getTotalBudgetAmount(card))}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-gray-400">No budgets assigned</span>
-                                                )}
+                                                {getBudgetDisplayName(card)}
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            ✓ All
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(card.status)}`}>

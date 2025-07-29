@@ -168,6 +168,30 @@ class PolicyResponse(BaseModel):
     description: Optional[str]
     memo_threshold: Optional[float]
     memo_prompt: Optional[str]
+    created_at: str
+
+# New models for balance calculations
+class BudgetBalance(BaseModel):
+    budget_id: str
+    budget_name: str
+    limit_amount: float
+    spent_amount: float
+    remaining_amount: float
+    period: str
+
+class CardBalance(BaseModel):
+    card_id: str
+    card_name: str
+    total_spent: float
+    total_limit: float
+    remaining_amount: float
+    budget_balances: list[BudgetBalance]
+
+class BalanceResponse(BaseModel):
+    card_balances: list[CardBalance]
+    total_spent: float
+    total_limit: float
+    total_remaining: float
 
 # JWT token functions
 def create_access_token(data: dict):
@@ -1033,6 +1057,191 @@ async def get_card_budgets(token: str = Depends(security)):
             return []
     except Exception as e:
         print(f"DEBUG: Get card budgets error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Balance calculation endpoints
+@app.get("/api/balances", response_model=BalanceResponse)
+async def get_balances(token: str = Depends(security)):
+    print(f"=== GET BALANCES ===")
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase not configured.")
+    
+    try:
+        payload = verify_token(token.credentials)
+        user_id = payload.get("sub")
+        
+        # Get all cards for the user
+        cards_response = supabase.table("cards").select("*").eq("account_id", user_id).execute()
+        cards = cards_response.data
+        
+        card_balances = []
+        total_spent = 0
+        total_limit = 0
+        
+        for card in cards:
+            # Get card-budget associations
+            card_budgets_response = supabase.table("card_budgets").select("id, budget_id").eq("card_id", card["id"]).execute()
+            card_budgets = card_budgets_response.data
+            
+            budget_balances = []
+            card_total_spent = 0
+            card_total_limit = 0
+            
+            for card_budget in card_budgets:
+                # Get budget details
+                budget_response = supabase.table("budgets").select("*").eq("id", card_budget["budget_id"]).execute()
+                if budget_response.data:
+                    budget = budget_response.data[0]
+                    
+                    # Calculate spent amount for this card-budget combination
+                    transactions_response = supabase.table("transactions").select("amount").eq("card_budget_id", card_budget["id"]).execute()
+                    spent_amount = sum(t["amount"] for t in transactions_response.data)
+                    
+                    remaining_amount = budget["limit_amount"] - spent_amount
+                    
+                    budget_balances.append(BudgetBalance(
+                        budget_id=budget["id"],
+                        budget_name=budget["name"],
+                        limit_amount=budget["limit_amount"],
+                        spent_amount=spent_amount,
+                        remaining_amount=remaining_amount,
+                        period=budget["period"]
+                    ))
+                    
+                    card_total_spent += spent_amount
+                    card_total_limit += budget["limit_amount"]
+            
+            card_remaining = card_total_limit - card_total_spent
+            
+            card_balances.append(CardBalance(
+                card_id=card["id"],
+                card_name=card["name"],
+                total_spent=card_total_spent,
+                total_limit=card_total_limit,
+                remaining_amount=card_remaining,
+                budget_balances=budget_balances
+            ))
+            
+            total_spent += card_total_spent
+            total_limit += card_total_limit
+        
+        total_remaining = total_limit - total_spent
+        
+        return BalanceResponse(
+            card_balances=card_balances,
+            total_spent=total_spent,
+            total_limit=total_limit,
+            total_remaining=total_remaining
+        )
+        
+    except Exception as e:
+        print(f"DEBUG: Get balances error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/cards/{card_id}/balance", response_model=CardBalance)
+async def get_card_balance(card_id: str, token: str = Depends(security)):
+    print(f"=== GET CARD BALANCE ===")
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase not configured.")
+    
+    try:
+        payload = verify_token(token.credentials)
+        user_id = payload.get("sub")
+        
+        # Verify card belongs to user
+        card_response = supabase.table("cards").select("*").eq("id", card_id).eq("account_id", user_id).execute()
+        if not card_response.data:
+            raise HTTPException(status_code=404, detail="Card not found")
+        
+        card = card_response.data[0]
+        
+        # Get card-budget associations
+        card_budgets_response = supabase.table("card_budgets").select("id, budget_id").eq("card_id", card_id).execute()
+        card_budgets = card_budgets_response.data
+        
+        budget_balances = []
+        card_total_spent = 0
+        card_total_limit = 0
+        
+        for card_budget in card_budgets:
+            # Get budget details
+            budget_response = supabase.table("budgets").select("*").eq("id", card_budget["budget_id"]).execute()
+            if budget_response.data:
+                budget = budget_response.data[0]
+                
+                # Calculate spent amount for this card-budget combination
+                transactions_response = supabase.table("transactions").select("amount").eq("card_budget_id", card_budget["id"]).execute()
+                spent_amount = sum(t["amount"] for t in transactions_response.data)
+                
+                remaining_amount = budget["limit_amount"] - spent_amount
+                
+                budget_balances.append(BudgetBalance(
+                    budget_id=budget["id"],
+                    budget_name=budget["name"],
+                    limit_amount=budget["limit_amount"],
+                    spent_amount=spent_amount,
+                    remaining_amount=remaining_amount,
+                    period=budget["period"]
+                ))
+                
+                card_total_spent += spent_amount
+                card_total_limit += budget["limit_amount"]
+        
+        card_remaining = card_total_limit - card_total_spent
+        
+        return CardBalance(
+            card_id=card["id"],
+            card_name=card["name"],
+            total_spent=card_total_spent,
+            total_limit=card_total_limit,
+            remaining_amount=card_remaining,
+            budget_balances=budget_balances
+        )
+        
+    except Exception as e:
+        print(f"DEBUG: Get card balance error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/budgets/{budget_id}/balance", response_model=BudgetBalance)
+async def get_budget_balance(budget_id: str, token: str = Depends(security)):
+    print(f"=== GET BUDGET BALANCE ===")
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase not configured.")
+    
+    try:
+        payload = verify_token(token.credentials)
+        user_id = payload.get("sub")
+        
+        # Verify budget belongs to user
+        budget_response = supabase.table("budgets").select("*").eq("id", budget_id).eq("account_id", user_id).execute()
+        if not budget_response.data:
+            raise HTTPException(status_code=404, detail="Budget not found")
+        
+        budget = budget_response.data[0]
+        
+        # Get all card-budget associations for this budget
+        card_budgets_response = supabase.table("card_budgets").select("id").eq("budget_id", budget_id).execute()
+        card_budgets = card_budgets_response.data
+        
+        # Calculate total spent across all cards using this budget
+        total_spent = 0
+        for card_budget in card_budgets:
+            transactions_response = supabase.table("transactions").select("amount").eq("card_budget_id", card_budget["id"]).execute()
+            total_spent += sum(t["amount"] for t in transactions_response.data)
+        
+        remaining_amount = budget["limit_amount"] - total_spent
+        
+        return BudgetBalance(
+            budget_id=budget["id"],
+            budget_name=budget["name"],
+            limit_amount=budget["limit_amount"],
+            spent_amount=total_spent,
+            remaining_amount=remaining_amount,
+            period=budget["period"]
+        )
+        
+    except Exception as e:
+        print(f"DEBUG: Get budget balance error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/")

@@ -209,6 +209,11 @@ select * from accounts;
 - `PUT /api/transactions/{transaction_id}` - Update a transaction
 - `DELETE /api/transactions/{transaction_id}` - Delete a transaction
 
+### Balance Calculations
+- `GET /api/balances` - Get comprehensive balance information for all cards and budgets
+- `GET /api/cards/{card_id}/balance` - Get detailed balance information for a specific card
+- `GET /api/budgets/{budget_id}/balance` - Get detailed balance information for a specific budget
+
 ## Recent Updates
 
 ### Multiple Budgets per Card
@@ -222,14 +227,23 @@ select * from accounts;
 - Transaction CRUD supported via API and UI
 - Transactions can be filtered and managed by card, budget, or both
 
-
+### Enhanced Balance Calculations
+- Real-time balance calculations based on actual transaction data
+- Cards display calculated spent amounts vs. total budget limits
+- Expandable balance details show breakdown by individual budgets
+- Budget column simplified to show single budget name or count of multiple budgets
+- Balance tab shows remaining amounts with color-coded indicators (green for remaining, red for over limit)
+- Support for period-based budget tracking (monthly, weekly, quarterly)
+- Visual progress bars for total balance and individual budget usage
+- Color-coded progress indicators (green/yellow/red based on usage percentage)
+- Real-time balance fetching in card modals with detailed breakdown
 
 Bugs:
 
-budgets --> spent doesnt mean anything
+~~budgets --> spent doesnt mean anything~~ ✅ FIXED - Now calculated from actual transaction data
 
-cards --> balance coult be updated and budget spents could be visualized
+~~cards --> balance could be updated and budget spents could be visualized~~ ✅ FIXED - Real-time balance calculations with expandable details
 
-dashboard -->
+dashboard --> 
 
 deployment --> 

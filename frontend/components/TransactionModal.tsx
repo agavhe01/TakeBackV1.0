@@ -270,8 +270,18 @@ export default function TransactionModal({ isOpen, onClose, transaction, onSave,
                         <input
                             type="number"
                             step="0.01"
-                            value={formData.amount}
-                            onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                            value={formData.amount === 0 ? '' : formData.amount}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '') {
+                                    setFormData(prev => ({ ...prev, amount: 0 }));
+                                } else {
+                                    const numValue = parseFloat(value);
+                                    if (!isNaN(numValue)) {
+                                        setFormData(prev => ({ ...prev, amount: numValue }));
+                                    }
+                                }
+                            }}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="0.00"
                         />

@@ -27,7 +27,7 @@ export default function BudgetModal({ isOpen, onClose, budget, onSave, onDelete,
     const [activeTab, setActiveTab] = useState<'overview' | 'edit'>('edit')
     const [formData, setFormData] = useState({
         name: '',
-        limit_amount: '' as string | number,
+        limit_amount: 0 as number,
         period: 'monthly' as 'monthly' | 'weekly' | 'quarterly',
         require_receipts: false
     })
@@ -55,7 +55,7 @@ export default function BudgetModal({ isOpen, onClose, budget, onSave, onDelete,
             } else {
                 setFormData({
                     name: '',
-                    limit_amount: '', // Start with empty string instead of 0
+                    limit_amount: 0, // Start with 0 instead of empty string
                     period: 'monthly',
                     require_receipts: false
                 })
@@ -67,12 +67,9 @@ export default function BudgetModal({ isOpen, onClose, budget, onSave, onDelete,
     const handleSave = async () => {
         setIsLoading(true)
         try {
-            // Convert limit_amount to number if it's a string
             const budgetData = {
                 ...formData,
-                limit_amount: typeof formData.limit_amount === 'string'
-                    ? parseFloat(formData.limit_amount) || 0
-                    : formData.limit_amount
+                limit_amount: formData.limit_amount
             }
             await onSave(budgetData)
             onClose()
@@ -320,8 +317,18 @@ export default function BudgetModal({ isOpen, onClose, budget, onSave, onDelete,
                                         </div>
                                         <input
                                             type="number"
-                                            value={formData.limit_amount}
-                                            onChange={(e) => setFormData({ ...formData, limit_amount: e.target.value })}
+                                            value={formData.limit_amount === 0 ? '' : formData.limit_amount}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                if (value === '') {
+                                                    setFormData(prev => ({ ...prev, limit_amount: 0 }));
+                                                } else {
+                                                    const numValue = parseFloat(value);
+                                                    if (!isNaN(numValue)) {
+                                                        setFormData(prev => ({ ...prev, limit_amount: numValue }));
+                                                    }
+                                                }
+                                            }}
                                             className="block w-full pl-7 py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                             placeholder="0.00"
                                             step="0.01"
