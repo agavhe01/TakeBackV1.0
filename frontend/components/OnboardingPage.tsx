@@ -458,7 +458,7 @@ export default function OnboardingPage() {
                     </h3>
 
                     <p className="text-gray-600 max-w-md mx-auto">
-                        You must be a person who can control or direct the business.
+                        This button does not actually do anything and simulates a fake verification, simply click on it to continue with the rest of the application
                     </p>
 
                     {isVerifying ? (
@@ -526,12 +526,6 @@ export default function OnboardingPage() {
                             <span className="text-sm text-gray-600">
                                 Step {currentStep} of {steps.length}
                             </span>
-                            <button
-                                onClick={handleSkipOnboarding}
-                                className="text-sm text-gray-500 hover:text-gray-700"
-                            >
-                                Skip for now
-                            </button>
                         </div>
                     </div>
                 </div>

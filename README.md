@@ -148,108 +148,6 @@ Once the backend is running, you can access:
   - `http://localhost:8000/debug/config`
   - `http://localhost:8000/debug/user/{email}`
 
-## Database Schema
-
-```sql
--- Enable UUID generation (required for gen_random_uuid)
-create extension if not exists "pgcrypto";
-
--- Drop tables if re-running
-DROP TABLE IF EXISTS transactions CASCADE;
-DROP TABLE IF EXISTS cards CASCADE;
-DROP TABLE IF EXISTS budgets CASCADE;
-DROP TABLE IF EXISTS policies CASCADE;
-DROP TABLE IF EXISTS accounts CASCADE;
-DROP TABLE IF EXISTS card_budgets CASCADE;
-
--- ACCOUNTS: Admin account for each startup
-CREATE TABLE accounts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    first_name TEXT NOT NULL,
-    last_name TEXT NOT NULL,
-    date_of_birth DATE,
-    address TEXT ,           -- Full address as a single field
-    zip_code TEXT,
-    ssn TEXT,               -- For now, plaintext; should encrypt/mask in prod
-    phone TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    organization_legal_name TEXT NOT NULL,
-    orginazation_ein_number TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- BUDGETS: Track limits for account spending
-CREATE TABLE budgets (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    limit_amount NUMERIC(10,2) NOT NULL,
-    period TEXT NOT NULL CHECK (period IN ('monthly', 'weekly', 'quarterly')),
-    require_receipts BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- CARDS: Issued cards linked to an account and optional budget
-CREATE TABLE cards (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('issued', 'frozen', 'cancelled')),
-    balance NUMERIC(10,2) DEFAULT 0,
-    cardholder_name TEXT,
-    cvv TEXT,
-    expiry TEXT,
-    zipcode TEXT,
-    address TEXT,
-    budget_id UUID REFERENCES budgets(id) ON DELETE SET NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- CARD_BUDGETS: Junction table for many-to-many relationship between cards and budgets
-CREATE TABLE card_budgets (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    card_id UUID NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
-    budget_id UUID NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(card_id, budget_id)
-);
-
--- TRANSACTIONS: Purchases made using a specific card-budget combination
-CREATE TABLE transactions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    card_budget_id UUID NOT NULL REFERENCES card_budgets(id) ON DELETE CASCADE,
-    amount NUMERIC(10,2) NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT,
-    category TEXT,
-    merchant TEXT,
-    receipt_url TEXT,
-    date TIMESTAMP DEFAULT NOW(),
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- POLICIES: Optional per-account settings for memo thresholds
-CREATE TABLE policies (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    description TEXT,
-    memo_threshold NUMERIC(10,2),
-    memo_prompt TEXT
-);
-
-
--- Create indexes for better performance
-CREATE INDEX idx_transactions_card_budget_id ON transactions(card_budget_id);
-CREATE INDEX idx_transactions_date ON transactions(date);
-CREATE INDEX idx_card_budgets_card_id ON card_budgets(card_id);
-CREATE INDEX idx_card_budgets_budget_id ON card_budgets(budget_id);
-
-select * from accounts;
-
-
-```
-
 ## Features
 
 ### Budget Management
@@ -267,6 +165,13 @@ select * from accounts;
 - Record transactions against specific card-budget combinations
 - Add, edit, and delete transactions
 - Track spending against budget limits and by budget breakdown
+- Optionally assign a receipt to each transaction (one-to-one or none)
+- View and select from all uploaded receipts when creating or editing a transaction
+
+### Receipt Management
+- Upload and manage receipts (images or documents)
+- Each receipt includes name, amount, date of purchase, and file URL
+- Receipts can be linked to transactions for audit and compliance
 
 ## API Endpoints
 
@@ -293,46 +198,202 @@ select * from accounts;
 - `GET /api/cards/{card_id}/balance` - Get detailed balance information for a specific card
 - `GET /api/budgets/{budget_id}/balance` - Get detailed balance information for a specific budget
 
-## Recent Updates
+## Database Schema
 
-### Multiple Budgets per Card
-- Cards can now be associated with multiple budgets
-- Total spending limit is calculated as the sum of all associated budgets
-- Budget breakdown is displayed in the cards dashboard
-- Card creation/editing modal shows selectable budgets as checkboxes
+```sql
+-- Enable UUID generation (required for gen_random_uuid)
+create extension if not exists "pgcrypto";
 
-### Transactions Linked to Card-Budget
-- Transactions now reference a unique card-budget combination
-- Transaction CRUD supported via API and UI
-- Transactions can be filtered and managed by card, budget, or both
+-- Drop tables if re-running
+DROP TABLE IF EXISTS transactions CASCADE;
+DROP TABLE IF EXISTS cards CASCADE;
+DROP TABLE IF EXISTS budgets CASCADE;
+DROP TABLE IF EXISTS policies CASCADE;
+DROP TABLE IF EXISTS accounts CASCADE;
+DROP TABLE IF EXISTS card_budgets CASCADE;
+DROP TABLE IF EXISTS receipts CASCADE;
 
-### Enhanced Balance Calculations
-- Real-time balance calculations based on actual transaction data
-- Cards display calculated spent amounts vs. total budget limits
-- Expandable balance details show breakdown by individual budgets
-- Budget column simplified to show single budget name or count of multiple budgets
-- Balance tab shows remaining amounts with color-coded indicators (green for remaining, red for over limit)
-- Support for period-based budget tracking (monthly, weekly, quarterly)
-- Visual progress bars for total balance and individual budget usage
-- Color-coded progress indicators (green/yellow/red based on usage percentage)
-- Real-time balance fetching in card modals with detailed breakdown
+-- RECEIPTS: Store uploaded receipts
+CREATE TABLE receipts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    description VARCHAR(500),
+    account_id UUID NOT NULL,
+    name VARCHAR(100) NOT NULL CHECK (name <> ''),
+    type VARCHAR(50) CHECK (type IN ('image', 'pdf', 'document')),
+    url VARCHAR(500) CHECK (url ~ '^https?://'),
+    amount NUMERIC(10,2) CHECK (amount >= 0),
+    date_added TIMESTAMP DEFAULT NOW(),
+    date_of_purchase TIMESTAMP CHECK (date_of_purchase <= NOW())
+);
 
-### Interactive Dashboard
-- Personalized welcome message with user's first name
-- Quick action buttons for "Manage Payments" and "Issue Card"
-- Account balances section with visual progress bars for each card
-- Clickable card balances that open detailed pie chart modals
-- Interactive pie charts showing budget breakdown with percentages
-- Cards summary section with count of active cards
-- Navigation to cards page with visual indicators
-- Real-time data fetching from balance calculation APIs
+-- ACCOUNTS: Admin account for each startup
+CREATE TABLE accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    first_name VARCHAR(50) NOT NULL CHECK (first_name <> '' AND length(first_name) >= 2),
+    last_name VARCHAR(50) NOT NULL CHECK (last_name <> '' AND length(last_name) >= 2),
+    date_of_birth DATE CHECK (date_of_birth <= CURRENT_DATE),
+    address VARCHAR(200) CHECK (address IS NULL OR length(address) >= 10),
+    zip_code VARCHAR(10) CHECK (zip_code IS NULL OR zip_code ~ '^\d{5}(-\d{4})?$'),
+    ssn VARCHAR(11) CHECK (ssn IS NULL OR ssn ~ '^\d{3}-\d{2}-\d{4}$'),
+    phone VARCHAR(15) NOT NULL CHECK (phone ~ '^\+?1?\d{10,14}$'),
+    email VARCHAR(100) UNIQUE NOT NULL CHECK (email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+    organization_legal_name VARCHAR(100) NOT NULL CHECK (organization_legal_name <> '' AND length(organization_legal_name) >= 3),
+    organization_ein_number VARCHAR(10) NOT NULL CHECK (organization_ein_number ~ '^\d{2}-\d{7}$'),
+    created_at TIMESTAMP DEFAULT NOW()
+);
 
-### Personal Settings Management
-- Comprehensive user profile management modal
-- Editable fields: phone, address, ZIP code, SSN
-- Read-only fields: first name, last name, date of birth, email, organization legal name, organization EIN number, account ID, created date
-- Real-time profile updates via API integration
-- Form validation and success feedback
-- Secure SSN input with password field type
-- Visual icons for different field types
-- Responsive design with proper form layout
+-- BUDGETS: Track limits for account spending
+CREATE TABLE budgets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL CHECK (name <> '' AND length(name) >= 2),
+    limit_amount NUMERIC(10,2) NOT NULL CHECK (limit_amount > 0),
+    period VARCHAR(20) NOT NULL CHECK (period IN ('monthly', 'weekly', 'quarterly')),
+    require_receipts BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- CARDS: Issued cards linked to an account and optional budget
+CREATE TABLE cards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL CHECK (name <> '' AND length(name) >= 2),
+    status VARCHAR(20) NOT NULL CHECK (status IN ('issued', 'frozen', 'cancelled')),
+    balance NUMERIC(10,2) DEFAULT 0 CHECK (balance >= 0),
+    cardholder_name VARCHAR(100) CHECK (cardholder_name IS NULL OR (cardholder_name <> '' AND length(cardholder_name) >= 2)),
+    cvv VARCHAR(4) CHECK (cvv IS NULL OR cvv ~ '^\d{3,4}$'),
+    expiry VARCHAR(5) CHECK (expiry IS NULL OR expiry ~ '^\d{2}/\d{2}$'),
+    zipcode VARCHAR(10) CHECK (zipcode IS NULL OR zipcode ~ '^\d{5}(-\d{4})?$'),
+    address VARCHAR(200) CHECK (address IS NULL OR length(address) >= 10),
+    budget_id UUID REFERENCES budgets(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- CARD_BUDGETS: Junction table for many-to-many relationship between cards and budgets
+CREATE TABLE card_budgets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    card_id UUID NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    budget_id UUID NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(card_id, budget_id)
+);
+
+-- TRANSACTIONS: Purchases made using a specific card-budget combination
+CREATE TABLE transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    card_budget_id UUID NOT NULL REFERENCES card_budgets(id) ON DELETE CASCADE,
+    amount NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+    name VARCHAR(100) NOT NULL CHECK (name <> '' AND length(name) >= 2),
+    description VARCHAR(500),
+    category VARCHAR(50) CHECK (category IS NULL OR category IN ('food', 'transport', 'entertainment', 'utilities', 'shopping', 'health', 'education', 'other')),
+    merchant VARCHAR(100) CHECK (merchant IS NULL OR length(merchant) >= 2),
+    receipt_url VARCHAR(500) CHECK (receipt_url IS NULL OR receipt_url ~ '^https?://'),
+    date TIMESTAMP DEFAULT NOW() CHECK (date <= NOW()),
+    created_at TIMESTAMP DEFAULT NOW(),
+    receipt_id UUID REFERENCES receipts(id) ON DELETE SET NULL
+);
+
+-- POLICIES: Optional per-account settings for memo thresholds
+CREATE TABLE policies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL CHECK (name <> '' AND length(name) >= 2),
+    description VARCHAR(500),
+    memo_threshold NUMERIC(10,2) CHECK (memo_threshold IS NULL OR memo_threshold > 0),
+    memo_prompt VARCHAR(200)
+);
+
+-- Create indexes for better performance
+CREATE INDEX idx_transactions_card_budget_id ON transactions(card_budget_id);
+CREATE INDEX idx_transactions_date ON transactions(date);
+CREATE INDEX idx_card_budgets_card_id ON card_budgets(card_id);
+CREATE INDEX idx_card_budgets_budget_id ON card_budgets(budget_id);
+CREATE INDEX idx_accounts_email ON accounts(email);
+CREATE INDEX idx_receipts_account_id ON receipts(account_id);
+CREATE INDEX idx_budgets_account_id ON budgets(account_id);
+CREATE INDEX idx_cards_account_id ON cards(account_id);
+
+-- Add receipt_id to transactions (if not already present)
+ALTER TABLE transactions
+ADD COLUMN receipt_id UUID REFERENCES receipts(id) ON DELETE SET NULL;
+
+-- Create a view for account summary
+CREATE VIEW account_summary AS
+SELECT 
+    a.id,
+    a.first_name,
+    a.last_name,
+    a.email,
+    a.organization_legal_name,
+    COUNT(DISTINCT c.id) as total_cards,
+    COUNT(DISTINCT b.id) as total_budgets,
+    COUNT(DISTINCT t.id) as total_transactions,
+    COALESCE(SUM(t.amount), 0) as total_spent
+FROM accounts a
+LEFT JOIN cards c ON a.id = c.account_id
+LEFT JOIN budgets b ON a.id = b.account_id
+LEFT JOIN card_budgets cb ON c.id = cb.card_id
+LEFT JOIN transactions t ON cb.id = t.card_budget_id
+GROUP BY a.id, a.first_name, a.last_name, a.email, a.organization_legal_name;
+
+-- Create a function to validate card status changes
+CREATE OR REPLACE FUNCTION validate_card_status_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Prevent changing status to 'cancelled' if card has active transactions in the last 30 days
+    IF NEW.status = 'cancelled' THEN
+        IF EXISTS (
+            SELECT 1 FROM transactions t
+            JOIN card_budgets cb ON t.card_budget_id = cb.id
+            WHERE cb.card_id = NEW.id 
+            AND t.date >= NOW() - INTERVAL '30 days'
+        ) THEN
+            RAISE EXCEPTION 'Cannot cancel card with recent transactions';
+        END IF;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger for card status validation
+CREATE TRIGGER card_status_validation
+    BEFORE UPDATE ON cards
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_card_status_change();
+
+-- Create a function to check budget limits
+CREATE OR REPLACE FUNCTION check_budget_limit()
+RETURNS TRIGGER AS $$
+DECLARE
+    budget_limit NUMERIC(10,2);
+    current_spent NUMERIC(10,2);
+BEGIN
+    -- Get budget limit
+    SELECT b.limit_amount INTO budget_limit
+    FROM budgets b
+    JOIN card_budgets cb ON b.id = cb.budget_id
+    WHERE cb.id = NEW.card_budget_id;
+    
+    -- Get current spent amount for this budget
+    SELECT COALESCE(SUM(t.amount), 0) INTO current_spent
+    FROM transactions t
+    JOIN card_budgets cb ON t.card_budget_id = cb.id
+    WHERE cb.budget_id = (SELECT budget_id FROM card_budgets WHERE id = NEW.card_budget_id)
+    AND t.id != NEW.id; -- Exclude the current transaction
+    
+    -- Check if new transaction would exceed budget
+    IF (current_spent + NEW.amount) > budget_limit THEN
+        RAISE EXCEPTION 'Transaction would exceed budget limit of %', budget_limit;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger for budget limit validation
+CREATE TRIGGER budget_limit_validation
+    BEFORE INSERT OR UPDATE ON transactions
+    FOR EACH ROW
+    EXECUTE FUNCTION check_budget_limit();
+```

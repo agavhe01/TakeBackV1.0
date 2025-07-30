@@ -89,6 +89,7 @@ export default function DashboardPage() {
     const [error, setError] = useState('')
     const [selectedCard, setSelectedCard] = useState<CardBalance | null>(null)
     const [showPieChart, setShowPieChart] = useState(false)
+    const [showWelcome, setShowWelcome] = useState(false)
 
     // Add loading states for individual sections
     const [cardsLoading, setCardsLoading] = useState(true)
@@ -132,6 +133,15 @@ export default function DashboardPage() {
 
         checkAuth()
     }, [router])
+
+    useEffect(() => {
+        // Show welcome popup only if not shown in this session
+        const hasSeenWelcome = localStorage.getItem('takeback_welcome_shown')
+        if (!hasSeenWelcome) {
+            setShowWelcome(true)
+            localStorage.setItem('takeback_welcome_shown', 'true')
+        }
+    }, [])
 
     // Simple time period change handler
     useEffect(() => {
@@ -462,6 +472,27 @@ export default function DashboardPage() {
     console.log('Dashboard loaded, rendering content...')
     return (
         <DashboardLayout>
+            {/* Welcome Popup */}
+            {showWelcome && (
+                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-8">
+                        <h2 className="text-2xl font-bold mb-4 text-center">Welcome to TakeBack!</h2>
+                        <ul className="list-disc pl-6 space-y-2 text-gray-700 text-base mb-6">
+                            <li><b>Create budgets</b> first to set your spending limits.</li>
+                            <li><b>Create cards</b> and assign one or more budgets to each card.</li>
+                            <li><b>Upload receipts</b> for your purchases.</li>
+                            <li><b>Add transactions</b> and optionally link them to receipts.</li>
+                            <li>Check the <b>Dashboard</b> for analytics and visual insights.</li>
+                        </ul>
+                        <button
+                            className="w-full py-2 px-4 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition"
+                            onClick={() => setShowWelcome(false)}
+                        >
+                            OK
+                        </button>
+                    </div>
+                </div>
+            )}
             <div className="p-8 space-y-8">
                 {/* Welcome Section */}
                 <div className="flex items-center justify-between">
