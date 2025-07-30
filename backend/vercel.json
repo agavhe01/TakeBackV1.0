@@ -44,5 +44,10 @@
     ],
     "env": {
         "PYTHONPATH": "."
+    },
+    "functions": {
+        "main.py": {
+            "runtime": "python3.12"
+        }
     }
 }
