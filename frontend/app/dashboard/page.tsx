@@ -644,7 +644,7 @@ export default function DashboardPage() {
                             </div>
                         ) : recentTransactions.length > 0 ? (
                             <div className="space-y-3">
-                                {recentTransactions.map((transaction) => (
+                                {recentTransactions.slice(0, 3).map((transaction) => (
                                     <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                         <div className="flex-1">
                                             <div className="flex items-center justify-between">

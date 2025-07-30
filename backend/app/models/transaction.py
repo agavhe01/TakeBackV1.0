@@ -8,6 +8,7 @@ class TransactionCreate(BaseModel):
     date: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
+    receipt_id: Optional[str] = None
 
 class TransactionResponse(BaseModel):
     id: str
@@ -17,6 +18,7 @@ class TransactionResponse(BaseModel):
     date: str
     description: Optional[str] = None
     category: Optional[str] = None
+    receipt_id: Optional[str] = None
     # Optionally include related card and budget info for frontend enrichment
     card_id: Optional[str] = None
     budget_id: Optional[str] = None 

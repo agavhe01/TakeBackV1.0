@@ -39,7 +39,8 @@ class TransactionService:
                 "name": transaction_data.name,
                 "date": transaction_data.date if transaction_data.date else datetime.utcnow().isoformat(),
                 "description": transaction_data.description,
-                "category": transaction_data.category
+                "category": transaction_data.category,
+                "receipt_id": transaction_data.receipt_id
             }
             
             print(f"DEBUG: Inserting transaction data: {transaction_insert_data}")
@@ -81,7 +82,8 @@ class TransactionService:
                 "name": transaction_data.name,
                 "date": transaction_data.date if transaction_data.date else datetime.utcnow().isoformat(),
                 "description": transaction_data.description,
-                "category": transaction_data.category
+                "category": transaction_data.category,
+                "receipt_id": transaction_data.receipt_id
             }
             response = supabase.table("transactions").update(update_data).eq("id", transaction_id).execute()
             if response.data:

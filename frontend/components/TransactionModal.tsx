@@ -27,6 +27,7 @@ interface Transaction {
     category?: string
     card_id?: string
     budget_id?: string
+    receipt_id?: string
 }
 
 interface TransactionModalProps {
@@ -38,6 +39,13 @@ interface TransactionModalProps {
     mode: 'create' | 'edit'
 }
 
+interface Receipt {
+    id: string
+    name: string
+    amount: number
+    date_of_purchase: string
+}
+
 export default function TransactionModal({ isOpen, onClose, transaction, onSave, onDelete, mode }: TransactionModalProps) {
     const [formData, setFormData] = useState({
         card_id: '',
@@ -46,16 +54,19 @@ export default function TransactionModal({ isOpen, onClose, transaction, onSave,
         name: '',
         date: new Date().toISOString().split('T')[0],
         description: '',
-        category: ''
+        category: '',
+        receipt_id: ''
     })
     const [isLoading, setIsLoading] = useState(false)
     const [availableCards, setAvailableCards] = useState<Card[]>([])
     const [availableBudgets, setAvailableBudgets] = useState<Budget[]>([])
+    const [availableReceipts, setAvailableReceipts] = useState<Receipt[]>([])
     const [isLoadingData, setIsLoadingData] = useState(false)
 
     useEffect(() => {
         if (isOpen) {
             fetchCardsAndBudgets()
+            fetchReceipts()
         }
     }, [isOpen])
 
@@ -68,7 +79,8 @@ export default function TransactionModal({ isOpen, onClose, transaction, onSave,
                 name: transaction.name,
                 date: transaction.date.split('T')[0],
                 description: transaction.description || '',
-                category: transaction.category || ''
+                category: transaction.category || '',
+                receipt_id: transaction.receipt_id || ''
             })
         } else if (mode === 'create') {
             setFormData({
@@ -78,7 +90,8 @@ export default function TransactionModal({ isOpen, onClose, transaction, onSave,
                 name: '',
                 date: new Date().toISOString().split('T')[0],
                 description: '',
-                category: ''
+                category: '',
+                receipt_id: ''
             })
         }
     }, [transaction, mode])
@@ -110,6 +123,24 @@ export default function TransactionModal({ isOpen, onClose, transaction, onSave,
             console.error('Error fetching cards and budgets:', error)
         } finally {
             setIsLoadingData(false)
+        }
+    }
+
+    const fetchReceipts = async () => {
+        try {
+            const token = localStorage.getItem('access_token')
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+            const response = await fetch(`${apiUrl}/api/receipts`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            if (response.ok) {
+                const receipts: Receipt[] = await response.json()
+                setAvailableReceipts(receipts)
+            } else {
+                setAvailableReceipts([])
+            }
+        } catch (error) {
+            setAvailableReceipts([])
         }
     }
 
@@ -162,7 +193,8 @@ export default function TransactionModal({ isOpen, onClose, transaction, onSave,
                 name: formData.name,
                 date: formData.date,
                 description: formData.description,
-                category: formData.category
+                category: formData.category,
+                receipt_id: formData.receipt_id || undefined
             }
 
             await onSave(transactionData)
@@ -222,7 +254,8 @@ export default function TransactionModal({ isOpen, onClose, transaction, onSave,
                                 setFormData(prev => ({
                                     ...prev,
                                     card_id: e.target.value,
-                                    budget_id: '' // Reset budget when card changes
+                                    budget_id: '', // Reset budget when card changes
+                                    receipt_id: '' // Reset receipt when card changes
                                 }))
                             }}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -340,6 +373,25 @@ export default function TransactionModal({ isOpen, onClose, transaction, onSave,
                             rows={3}
                             placeholder="Enter transaction description"
                         />
+                    </div>
+
+                    {/* Receipt Selection */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Receipt (optional)
+                        </label>
+                        <select
+                            value={formData.receipt_id}
+                            onChange={e => setFormData(prev => ({ ...prev, receipt_id: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="">None</option>
+                            {availableReceipts.map(receipt => (
+                                <option key={receipt.id} value={receipt.id}>
+                                    {`${receipt.name} - $${receipt.amount} - ${receipt.date_of_purchase}`}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 
