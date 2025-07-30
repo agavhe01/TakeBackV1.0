@@ -12,7 +12,8 @@ import {
     MessageCircle,
     ChevronDown,
     Leaf,
-    LogOut
+    LogOut,
+    Receipt
 } from 'lucide-react'
 import PersonalSettingsModal from './PersonalSettingsModal'
 
@@ -67,6 +68,11 @@ export default function NavigationSidebar({ user }: NavigationSidebarProps) {
             name: 'Transactions',
             href: '/transactions',
             icon: ArrowLeftRight
+        },
+        {
+            name: 'Receipts',
+            href: '/receipts',
+            icon: Receipt
         },
         {
             name: 'Policies',
