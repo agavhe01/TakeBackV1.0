@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { API_URLS } from '../config'
 
 interface ReceiptModalProps {
     isOpen: boolean
@@ -13,19 +14,68 @@ export default function ReceiptModal({ isOpen, onClose, onNext }: ReceiptModalPr
     const [name, setName] = useState('')
     const [type, setType] = useState('')
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
+    const [isUploading, setIsUploading] = useState(false)
+    const [uploadMessage, setUploadMessage] = useState('')
+    const [uploadSuccess, setUploadSuccess] = useState(false)
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] || null
         setSelectedFile(file)
+        setUploadMessage('')
+        setUploadSuccess(false)
     }
 
-    const handleSave = () => {
-        // Does nothing for now as requested
-        console.log('Save button clicked')
+    const handleSave = async () => {
+        if (!selectedFile || !name || !type) {
+            setUploadMessage('Please fill in all required fields and select a file.')
+            return
+        }
+
+        setIsUploading(true)
+        setUploadMessage('')
+
+        try {
+            const formData = new FormData()
+            formData.append('file', selectedFile)
+            formData.append('name', name)
+            formData.append('type', type)
+
+            const token = localStorage.getItem('access_token')
+            if (!token) {
+                setUploadMessage('Authentication required. Please sign in again.')
+                return
+            }
+
+            const response = await fetch(API_URLS.RECEIPTS_UPLOAD, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            })
+
+            const result = await response.json()
+
+            if (response.ok && result.success) {
+                setUploadSuccess(true)
+                setUploadMessage('Receipt uploaded successfully!')
+            } else if (response.status === 401) {
+                setUploadMessage('Authentication failed. Please sign in again.')
+            } else {
+                setUploadMessage(result.detail || 'Failed to upload receipt.')
+            }
+        } catch (error) {
+            console.error('Upload error:', error)
+            setUploadMessage('An error occurred while uploading the receipt.')
+        } finally {
+            setIsUploading(false)
+        }
     }
 
     const handleNext = () => {
-        onNext()
+        if (uploadSuccess) {
+            onNext()
+        }
     }
 
     if (!isOpen) return null
@@ -83,7 +133,7 @@ export default function ReceiptModal({ isOpen, onClose, onNext }: ReceiptModalPr
                     {/* File Upload */}
                     <div>
                         <label htmlFor="file" className="block text-sm font-medium text-gray-700 mb-2">
-                            File Upload
+                            File Upload *
                         </label>
                         <input
                             type="file"
@@ -98,6 +148,16 @@ export default function ReceiptModal({ isOpen, onClose, onNext }: ReceiptModalPr
                             </p>
                         )}
                     </div>
+
+                    {/* Upload Message */}
+                    {uploadMessage && (
+                        <div className={`p-3 rounded-md text-sm ${uploadSuccess
+                            ? 'bg-green-50 text-green-700 border border-green-200'
+                            : 'bg-red-50 text-red-700 border border-red-200'
+                            }`}>
+                            {uploadMessage}
+                        </div>
+                    )}
                 </div>
 
                 {/* Action Buttons */}
@@ -110,13 +170,21 @@ export default function ReceiptModal({ isOpen, onClose, onNext }: ReceiptModalPr
                     </button>
                     <button
                         onClick={handleSave}
-                        className="px-4 py-2 text-sm font-medium text-white bg-gray-600 border border-transparent rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                        disabled={isUploading || !selectedFile || !name || !type}
+                        className={`px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${isUploading || !selectedFile || !name || !type
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-blue-600 hover:bg-blue-700'
+                            }`}
                     >
-                        Save
+                        {isUploading ? 'Uploading...' : 'Save'}
                     </button>
                     <button
                         onClick={handleNext}
-                        className="px-4 py-2 text-sm font-medium text-white bg-gray-600 border border-transparent rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                        disabled={!uploadSuccess}
+                        className={`px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${uploadSuccess
+                            ? 'bg-green-600 hover:bg-green-700'
+                            : 'bg-gray-400 cursor-not-allowed'
+                            }`}
                     >
                         Next
                     </button>

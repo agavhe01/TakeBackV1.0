@@ -4,11 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 # Handle imports for different execution contexts
 try:
     from .config.settings import settings
-    from .api import auth, budgets, cards, transactions, policies, analytics, card_budgets
+    from .api import auth, budgets, cards, transactions, policies, analytics, card_budgets, receipts
 except ImportError:
     # When running from backend root
     from app.config.settings import settings
-    from app.api import auth, budgets, cards, transactions, policies, analytics, card_budgets
+    from app.api import auth, budgets, cards, transactions, policies, analytics, card_budgets, receipts
 
 # Create FastAPI app
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
@@ -32,6 +32,7 @@ app.include_router(transactions.router)
 app.include_router(policies.router)
 app.include_router(analytics.router)
 app.include_router(card_budgets.router)
+app.include_router(receipts.router)
 
 @app.get("/")
 async def root():

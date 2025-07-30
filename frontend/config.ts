@@ -34,6 +34,10 @@ export const API_CONFIG = {
 
         // Policies endpoints
         POLICIES: '/api/policies',
+
+        // Receipts endpoints
+        RECEIPTS: '/api/receipts',
+        RECEIPTS_UPLOAD: '/api/receipts/upload',
     }
 } as const;
 
@@ -79,6 +83,10 @@ export const API_URLS = {
 
     // Policies URLs
     POLICIES: buildApiUrl(API_CONFIG.ENDPOINTS.POLICIES),
+
+    // Receipts URLs
+    RECEIPTS: buildApiUrl(API_CONFIG.ENDPOINTS.RECEIPTS),
+    RECEIPTS_UPLOAD: buildApiUrl(API_CONFIG.ENDPOINTS.RECEIPTS_UPLOAD),
 } as const;
 
 // Helper functions for dynamic endpoints
@@ -93,6 +101,9 @@ export const getBudgetUrl = (budgetId: string) =>
 
 export const getTransactionUrl = (transactionId: string) =>
     `${API_URLS.TRANSACTIONS}/${transactionId}`;
+
+export const getReceiptUrl = (receiptId: string) =>
+    `${API_URLS.RECEIPTS}/${receiptId}`;
 
 // API request helper
 export const apiRequest = async (
