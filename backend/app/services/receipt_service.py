@@ -170,6 +170,46 @@ class ReceiptService:
             raise HTTPException(status_code=500, detail=f"Failed to upload receipt: {str(e)}")
     
     @staticmethod
+    async def create_receipt(user_id: str, receipt_data: ReceiptCreate) -> ReceiptResponse:
+        """Create a receipt record in the database"""
+        print(f"=== CREATE RECEIPT ===")
+        print(f"DEBUG: User ID: {user_id}")
+        print(f"DEBUG: Receipt data: {receipt_data}")
+        
+        if not supabase:
+            print("DEBUG: Supabase not configured")
+            raise HTTPException(status_code=500, detail="Supabase not configured.")
+        
+        try:
+            print(f"DEBUG: Creating receipt record...")
+            receipt_insert_data = {
+                "name": receipt_data.name,
+                "type": receipt_data.type,
+                "description": receipt_data.description,
+                "amount": receipt_data.amount,
+                "url": receipt_data.url,
+                "account_id": user_id,
+                "date_of_purchase": receipt_data.date_of_purchase if receipt_data.date_of_purchase else datetime.utcnow().isoformat()
+            }
+            
+            print(f"DEBUG: Receipt insert data: {receipt_insert_data}")
+            db_response = supabase.table("receipts").insert(receipt_insert_data).execute()
+            print(f"DEBUG: Database response: {db_response}")
+            
+            if not db_response.data:
+                print("DEBUG: Database insert failed - no data returned")
+                raise HTTPException(status_code=500, detail="Failed to create receipt record")
+            
+            receipt = ReceiptResponse(**db_response.data[0])
+            print(f"DEBUG: Receipt created successfully: {receipt}")
+            return receipt
+            
+        except Exception as e:
+            print(f"DEBUG: Create receipt error: {str(e)}")
+            print(f"DEBUG: Traceback: {traceback.format_exc()}")
+            raise HTTPException(status_code=500, detail=f"Failed to create receipt: {str(e)}")
+
+    @staticmethod
     async def get_receipts(user_id: str) -> list[ReceiptResponse]:
         """Get all receipts for a user"""
         print(f"=== GET RECEIPTS ===")

@@ -11,34 +11,22 @@ security = HTTPBearer()
 @router.post("/upload", response_model=ReceiptUploadResponse)
 async def upload_receipt(
     file: UploadFile = File(...),
-    name: str = Form(...),
-    type: str = Form(...),
-    description: Optional[str] = Form(None),
-    amount: Optional[float] = Form(None),
-    date_of_purchase: Optional[str] = Form(None),
     token: str = Depends(security)
 ):
-    """Upload a receipt file and create database record"""
+    """Upload a receipt file only"""
     print(f"=== UPLOAD RECEIPT API ENDPOINT ===")
     print(f"DEBUG: Received upload request")
     print(f"DEBUG: File: {file.filename}")
-    print(f"DEBUG: Name: {name}")
-    print(f"DEBUG: Type: {type}")
-    print(f"DEBUG: Description: {description}")
-    print(f"DEBUG: Amount: {amount}")
-    print(f"DEBUG: Date of purchase: {date_of_purchase}")
     
     try:
         payload = verify_token(token.credentials)
         user_id = payload.get("sub")
         print(f"DEBUG: Authenticated user ID: {user_id}")
         
+        # Create minimal receipt data for upload
         receipt_data = ReceiptCreate(
-            name=name,
-            type=type,
-            description=description,
-            amount=amount,
-            date_of_purchase=date_of_purchase
+            name=file.filename or "Uploaded File",
+            type="image" if file.content_type and file.content_type.startswith("image/") else "document"
         )
         print(f"DEBUG: Created receipt data object: {receipt_data}")
         
@@ -48,6 +36,29 @@ async def upload_receipt(
         
     except Exception as e:
         print(f"DEBUG: Upload endpoint error: {str(e)}")
+        raise
+
+@router.post("/", response_model=ReceiptResponse)
+async def create_receipt(
+    receipt_data: ReceiptCreate,
+    token: str = Depends(security)
+):
+    """Create a receipt record in the database"""
+    print(f"=== CREATE RECEIPT API ENDPOINT ===")
+    print(f"DEBUG: Received create receipt request")
+    print(f"DEBUG: Receipt data: {receipt_data}")
+    
+    try:
+        payload = verify_token(token.credentials)
+        user_id = payload.get("sub")
+        print(f"DEBUG: Authenticated user ID: {user_id}")
+        
+        result = await ReceiptService.create_receipt(user_id, receipt_data)
+        print(f"DEBUG: Receipt created successfully: {result}")
+        return result
+        
+    except Exception as e:
+        print(f"DEBUG: Create receipt endpoint error: {str(e)}")
         raise
 
 @router.get("/", response_model=list[ReceiptResponse])

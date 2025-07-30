@@ -1,22 +1,42 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { API_URLS } from '../config'
 
 interface ReceiptModalProps {
     isOpen: boolean
     onClose: () => void
-    onNext: () => void
+    onNext: (fileUrl: string, fileName: string, fileType: string) => void
 }
 
 export default function ReceiptModal({ isOpen, onClose, onNext }: ReceiptModalProps) {
-    const [name, setName] = useState('')
-    const [type, setType] = useState('')
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [isUploading, setIsUploading] = useState(false)
     const [uploadMessage, setUploadMessage] = useState('')
     const [uploadSuccess, setUploadSuccess] = useState(false)
+    const [uploadedFileUrl, setUploadedFileUrl] = useState('')
+    const [uploadedFileName, setUploadedFileName] = useState('')
+    const [uploadedFileType, setUploadedFileType] = useState('')
+
+    // Reset state when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            setSelectedFile(null)
+            setIsUploading(false)
+            setUploadMessage('')
+            setUploadSuccess(false)
+            setUploadedFileUrl('')
+            setUploadedFileName('')
+            setUploadedFileType('')
+
+            // Clear the file input
+            const fileInput = document.getElementById('file') as HTMLInputElement
+            if (fileInput) {
+                fileInput.value = ''
+            }
+        }
+    }, [isOpen])
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] || null
@@ -25,9 +45,9 @@ export default function ReceiptModal({ isOpen, onClose, onNext }: ReceiptModalPr
         setUploadSuccess(false)
     }
 
-    const handleSave = async () => {
-        if (!selectedFile || !name || !type) {
-            setUploadMessage('Please fill in all required fields and select a file.')
+    const handleUpload = async () => {
+        if (!selectedFile) {
+            setUploadMessage('Please select a file to upload.')
             return
         }
 
@@ -37,8 +57,6 @@ export default function ReceiptModal({ isOpen, onClose, onNext }: ReceiptModalPr
         try {
             const formData = new FormData()
             formData.append('file', selectedFile)
-            formData.append('name', name)
-            formData.append('type', type)
 
             const token = localStorage.getItem('access_token')
             if (!token) {
@@ -58,15 +76,18 @@ export default function ReceiptModal({ isOpen, onClose, onNext }: ReceiptModalPr
 
             if (response.ok && result.success) {
                 setUploadSuccess(true)
-                setUploadMessage('Receipt uploaded successfully!')
+                setUploadMessage('File uploaded successfully!')
+                setUploadedFileUrl(result.url)
+                setUploadedFileName(selectedFile.name)
+                setUploadedFileType(selectedFile.type.startsWith('image/') ? 'image' : 'document')
             } else if (response.status === 401) {
                 setUploadMessage('Authentication failed. Please sign in again.')
             } else {
-                setUploadMessage(result.detail || 'Failed to upload receipt.')
+                setUploadMessage(result.detail || 'Failed to upload file.')
             }
         } catch (error) {
             console.error('Upload error:', error)
-            setUploadMessage('An error occurred while uploading the receipt.')
+            setUploadMessage('An error occurred while uploading the file.')
         } finally {
             setIsUploading(false)
         }
@@ -74,7 +95,7 @@ export default function ReceiptModal({ isOpen, onClose, onNext }: ReceiptModalPr
 
     const handleNext = () => {
         if (uploadSuccess) {
-            onNext()
+            onNext(uploadedFileUrl, uploadedFileName, uploadedFileType)
         }
     }
 
@@ -86,7 +107,7 @@ export default function ReceiptModal({ isOpen, onClose, onNext }: ReceiptModalPr
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200">
                     <h2 className="text-xl font-semibold text-gray-900">
-                        Upload Receipt as Image or PDF
+                        Upload Receipt File
                     </h2>
                     <button
                         onClick={onClose}
@@ -98,42 +119,10 @@ export default function ReceiptModal({ isOpen, onClose, onNext }: ReceiptModalPr
 
                 {/* Form */}
                 <div className="p-6 space-y-4">
-                    {/* Name Field */}
-                    <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                            Name
-                        </label>
-                        <input
-                            type="text"
-                            id="name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Enter receipt name"
-                        />
-                    </div>
-
-                    {/* Type Selection */}
-                    <div>
-                        <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
-                            Type
-                        </label>
-                        <select
-                            id="type"
-                            value={type}
-                            onChange={(e) => setType(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                            <option value="">Select type</option>
-                            <option value="image">Image</option>
-                            <option value="document">Document</option>
-                        </select>
-                    </div>
-
                     {/* File Upload */}
                     <div>
                         <label htmlFor="file" className="block text-sm font-medium text-gray-700 mb-2">
-                            File Upload *
+                            Select File *
                         </label>
                         <input
                             type="file"
@@ -169,14 +158,14 @@ export default function ReceiptModal({ isOpen, onClose, onNext }: ReceiptModalPr
                         Cancel
                     </button>
                     <button
-                        onClick={handleSave}
-                        disabled={isUploading || !selectedFile || !name || !type}
-                        className={`px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${isUploading || !selectedFile || !name || !type
+                        onClick={handleUpload}
+                        disabled={isUploading || !selectedFile}
+                        className={`px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${isUploading || !selectedFile
                             ? 'bg-gray-400 cursor-not-allowed'
                             : 'bg-blue-600 hover:bg-blue-700'
                             }`}
                     >
-                        {isUploading ? 'Uploading...' : 'Save'}
+                        {isUploading ? 'Uploading...' : 'Upload'}
                     </button>
                     <button
                         onClick={handleNext}

@@ -1,19 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
+import PDFPreviewer, { PDFPreviewerHandle } from './PDFPreviewer'
+import ImagePreviewer from './ImagePreviewer'
 
 interface ReceiptModal2Props {
     isOpen: boolean
     onClose: () => void
+    fileUrl?: string // Add optional fileUrl prop
+    fileName?: string // Add optional fileName prop
 }
 
-export default function ReceiptModal2({ isOpen, onClose }: ReceiptModal2Props) {
-    const [name, setName] = useState('')
-    const [description, setDescription] = useState('')
-    const [amount, setAmount] = useState('')
+export default function ReceiptModal2({ isOpen, onClose, fileUrl, fileName }: ReceiptModal2Props) {
+    const [name, setName] = useState('Dine Inn Diner Meal')
+    const [description, setDescription] = useState('Dine Inn Dinner Meal\n123 Main Street\nGreat Meal')
+    const [amount, setAmount] = useState('200')
     const [dateAdded, setDateAdded] = useState('')
-    const [dateOfPurchase, setDateOfPurchase] = useState('')
+    const [dateOfPurchase, setDateOfPurchase] = useState('2025-07-28')
+    const pdfPreviewerRef = useRef<PDFPreviewerHandle>(null)
 
     // Uneditable fields (for now, these would be populated from the uploaded file or API)
     const [type, setType] = useState('Image')
@@ -27,13 +32,54 @@ export default function ReceiptModal2({ isOpen, onClose }: ReceiptModal2Props) {
     }
 
     const handleCancel = () => {
-        // Close modal for now as requested
         onClose()
     }
 
     const handleAIParse = () => {
-        // Does nothing for now as requested
-        console.log('AI Parse button clicked')
+        // AI parsing functionality would go here
+        console.log('AI parsing triggered')
+    }
+
+    const renderPreview = () => {
+        // Check if it's a PDF file
+        const isPDF = fileUrl && (fileUrl.toLowerCase().endsWith('.pdf') || fileUrl.toLowerCase().includes('pdf'));
+
+        if (fileUrl && (fileUrl.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp|tiff|svg)$/) || fileUrl.toLowerCase().includes('image'))) {
+            return (
+                <div className="flex flex-col">
+                    <label className="block text-sm font-medium mb-2">Image Preview</label>
+                    <ImagePreviewer url={fileUrl} fixedWidth={350} />
+                </div>
+            )
+        } else if (isPDF) {
+            return (
+                <div className="flex flex-col">
+                    <label className="block text-sm font-medium mb-2">PDF Preview</label>
+                    <PDFPreviewer
+                        ref={pdfPreviewerRef}
+                        url={fileUrl}
+                        fixedWidth={350}
+                    />
+                </div>
+            )
+        } else {
+            return (
+                <div className="flex justify-center">
+                    <div className="text-gray-600 text-center">
+                        <p>File preview not available</p>
+                        {fileUrl && (
+                            <a
+                                href={fileUrl}
+                                download={fileName || 'receipt.pdf'}
+                                className="text-blue-600 hover:text-blue-800 underline"
+                            >
+                                Download file
+                            </a>
+                        )}
+                    </div>
+                </div>
+            )
+        }
     }
 
     if (!isOpen) return null
@@ -66,10 +112,7 @@ export default function ReceiptModal2({ isOpen, onClose }: ReceiptModal2Props) {
                         <h3 className="text-lg font-medium text-gray-900 mb-4">Document Preview</h3>
                         <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <div className="bg-white h-full rounded border border-gray-200 p-4 overflow-auto">
-                                <div className="text-sm text-gray-600">
-                                    <p className="mb-2">Document preview will appear here...</p>
-                                    <p>This area will display the uploaded receipt image or PDF.</p>
-                                </div>
+                                {renderPreview()}
                             </div>
                         </div>
                     </div>
@@ -91,7 +134,7 @@ export default function ReceiptModal2({ isOpen, onClose }: ReceiptModal2Props) {
                             {/* Name Field */}
                             <div>
                                 <label htmlFor="receipt-name" className="block text-xs font-medium text-gray-700 mb-1">
-                                    Name
+                                    Name*
                                 </label>
                                 <input
                                     type="text"
@@ -103,25 +146,10 @@ export default function ReceiptModal2({ isOpen, onClose }: ReceiptModal2Props) {
                                 />
                             </div>
 
-                            {/* Description Field */}
-                            <div>
-                                <label htmlFor="receipt-description" className="block text-xs font-medium text-gray-700 mb-1">
-                                    Description
-                                </label>
-                                <input
-                                    type="text"
-                                    id="receipt-description"
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Enter receipt description"
-                                />
-                            </div>
-
                             {/* Amount Field */}
                             <div>
                                 <label htmlFor="receipt-amount" className="block text-xs font-medium text-gray-700 mb-1">
-                                    Amount
+                                    Amount*
                                 </label>
                                 <input
                                     type="number"
@@ -137,7 +165,7 @@ export default function ReceiptModal2({ isOpen, onClose }: ReceiptModal2Props) {
                             {/* Date of Purchase Field */}
                             <div>
                                 <label htmlFor="receipt-date-purchase" className="block text-xs font-medium text-gray-700 mb-1">
-                                    Date of Purchase
+                                    Date of Purchase*
                                 </label>
                                 <input
                                     type="date"
@@ -145,6 +173,21 @@ export default function ReceiptModal2({ isOpen, onClose }: ReceiptModal2Props) {
                                     value={dateOfPurchase}
                                     onChange={(e) => setDateOfPurchase(e.target.value)}
                                     className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+
+                            {/* Description Field */}
+                            <div>
+                                <label htmlFor="receipt-description" className="block text-xs font-medium text-gray-700 mb-1">
+                                    Description
+                                </label>
+                                <textarea
+                                    id="receipt-description"
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    rows={3}
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Enter receipt description"
                                 />
                             </div>
 
@@ -233,7 +276,7 @@ export default function ReceiptModal2({ isOpen, onClose }: ReceiptModal2Props) {
                         onClick={handleSave}
                         className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
-                        Save
+                        Save Receipt
                     </button>
                 </div>
             </div>

@@ -8,6 +8,7 @@ class ReceiptCreate(BaseModel):
     description: Optional[str] = None
     amount: Optional[float] = None
     date_of_purchase: Optional[str] = None
+    url: Optional[str] = None  # Add this field for the second step
 
 class ReceiptResponse(BaseModel):
     id: str

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Filter, ArrowLeftRight, Edit, Trash2 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import ReceiptModal from '../../components/ReceiptModal'
-import ReceiptModal2 from '../../components/ReceiptModal2'
+import ReceiptDetailsModal from '../../components/ReceiptDetailsModal'
 import { API_URLS, getReceiptUrl } from '../../config'
 
 interface Receipt {
@@ -23,8 +23,13 @@ export default function ReceiptsPage() {
     const [receipts, setReceipts] = useState<Receipt[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isModalOpen, setIsModalOpen] = useState(false)
-    const [isModal2Open, setIsModal2Open] = useState(false)
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
     const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+    // Receipt details for the second modal
+    const [uploadedFileUrl, setUploadedFileUrl] = useState('')
+    const [uploadedFileName, setUploadedFileName] = useState('')
+    const [uploadedFileType, setUploadedFileType] = useState('')
 
     const fetchReceipts = async () => {
         try {
@@ -81,15 +86,66 @@ export default function ReceiptsPage() {
         setIsModalOpen(true)
     }
 
-    const handleNext = () => {
+    const handleUploadSuccess = (fileUrl: string, fileName: string, fileType: string) => {
+        setUploadedFileUrl(fileUrl)
+        setUploadedFileName(fileName)
+        setUploadedFileType(fileType)
         setIsModalOpen(false)
-        setIsModal2Open(true)
+        setIsDetailsModalOpen(true)
+    }
+
+    const handleSaveReceipt = async (receiptData: {
+        name: string
+        amount: number
+        dateOfPurchase: string
+        description?: string
+    }) => {
+        try {
+            const token = localStorage.getItem('access_token')
+            if (!token) {
+                console.log('No authentication token found for save operation')
+                return
+            }
+
+            // Create the receipt record in the database
+            const response = await fetch(API_URLS.RECEIPTS, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name: receiptData.name,
+                    type: uploadedFileType,
+                    description: receiptData.description,
+                    amount: receiptData.amount,
+                    date_of_purchase: receiptData.dateOfPurchase,
+                    url: uploadedFileUrl
+                })
+            })
+
+            if (response.ok) {
+                // Refresh receipts list
+                await fetchReceipts()
+                setIsDetailsModalOpen(false)
+                // Reset state
+                setUploadedFileUrl('')
+                setUploadedFileName('')
+                setUploadedFileType('')
+            } else {
+                console.error('Failed to save receipt')
+            }
+        } catch (error) {
+            console.error('Error saving receipt:', error)
+        }
     }
 
     const handleModalClose = () => {
         setIsModalOpen(false)
-        // Refresh receipts after modal closes
-        fetchReceipts()
+        // Reset state
+        setUploadedFileUrl('')
+        setUploadedFileName('')
+        setUploadedFileType('')
     }
 
     const formatCurrency = (amount: number) => {
@@ -278,17 +334,23 @@ export default function ReceiptsPage() {
                     )}
                 </div>
 
-                {/* Receipt Modal */}
+                {/* Upload Modal */}
                 <ReceiptModal
+                    key={`upload-modal-${isModalOpen}`} // Force re-render when modal opens
                     isOpen={isModalOpen}
                     onClose={handleModalClose}
-                    onNext={handleNext}
+                    onNext={handleUploadSuccess}
                 />
 
-                {/* Receipt Modal 2 */}
-                <ReceiptModal2
-                    isOpen={isModal2Open}
-                    onClose={() => setIsModal2Open(false)}
+                {/* Details Modal */}
+                <ReceiptDetailsModal
+                    key={`${uploadedFileUrl}-${uploadedFileName}`} // Force re-render when file changes
+                    isOpen={isDetailsModalOpen}
+                    onClose={() => setIsDetailsModalOpen(false)}
+                    fileUrl={uploadedFileUrl}
+                    fileName={uploadedFileName}
+                    fileType={uploadedFileType}
+                    onSave={handleSaveReceipt}
                 />
             </div>
         </DashboardLayout>
