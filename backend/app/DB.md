@@ -1,3 +1,5 @@
+INITIAL DATABASE IMPLEMENTATION - no RLS, verifications or triggers
+
 
 ```sql
 -- Enable UUID generation (required for gen_random_uuid)

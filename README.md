@@ -1,7 +1,6 @@
 # TakeBack V1.0
 
-A credit/debit card management and spend management web application built with FastAPI, Next.js, Supabase, and Tailwind CSS.
-
+A credit/debit card management and spend management web application built with FastAPI, Next.js, React, TypesScript, PostgreSQL, Supabase, and Tailwind CSS.
 
 ## 🌐 **Live Application Links**
 
