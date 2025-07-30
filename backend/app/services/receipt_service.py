@@ -4,7 +4,7 @@ import os
 import uuid
 from typing import Optional
 from ..config.database import supabase
-from ..models.receipt import ReceiptCreate, ReceiptResponse, ReceiptUploadResponse
+from ..models.receipt import ReceiptCreate, ReceiptResponse, ReceiptUploadResponse, ReceiptUpdate
 import traceback
 
 class ReceiptService:
@@ -121,41 +121,13 @@ class ReceiptService:
             file_url = supabase.storage.from_("supporting-documents-storage-bucket").get_public_url(file_path)
             print(f"DEBUG: Public URL: {file_url}")
             
-            # Create database record
-            print(f"DEBUG: Creating database record...")
-            receipt_insert_data = {
-                "name": receipt_data.name,
-                "type": receipt_data.type,
-                "description": receipt_data.description,
-                "amount": receipt_data.amount,
-                "url": file_url,
-                "account_id": user_id,
-                "date_of_purchase": receipt_data.date_of_purchase if receipt_data.date_of_purchase else datetime.utcnow().isoformat()
-            }
-            
-            print(f"DEBUG: Receipt insert data: {receipt_insert_data}")
-            db_response = supabase.table("receipts").insert(receipt_insert_data).execute()
-            print(f"DEBUG: Database response: {db_response}")
-            
-            if not db_response.data:
-                print("DEBUG: Database insert failed - no data returned")
-                # If database insert fails, we should clean up the uploaded file
-                try:
-                    print("DEBUG: Attempting to clean up uploaded file...")
-                    supabase.storage.from_("supporting-documents-storage-bucket").remove([file_path])
-                    print("DEBUG: File cleanup successful")
-                except Exception as cleanup_error:
-                    print(f"DEBUG: File cleanup failed: {cleanup_error}")
-                    pass  # Ignore cleanup errors
-                raise HTTPException(status_code=500, detail="Failed to create receipt record")
-            
-            receipt_id = db_response.data[0]["id"]
-            print(f"DEBUG: Receipt created with ID: {receipt_id}")
+            # Return upload response without creating database record
+            print(f"DEBUG: File uploaded successfully, returning URL")
             
             response = ReceiptUploadResponse(
                 success=True,
-                message="Receipt uploaded successfully",
-                receipt_id=receipt_id,
+                message="File uploaded successfully",
+                receipt_id=None,  # No receipt ID since we're not creating a record yet
                 url=file_url
             )
             print(f"DEBUG: Returning success response: {response}")
@@ -327,5 +299,65 @@ class ReceiptService:
             raise
         except Exception as e:
             print(f"DEBUG: Delete receipt error: {str(e)}")
+            print(f"DEBUG: Traceback: {traceback.format_exc()}")
+            raise HTTPException(status_code=400, detail=str(e))
+    
+    @staticmethod
+    async def update_receipt(user_id: str, receipt_id: str, receipt_data: ReceiptUpdate) -> ReceiptResponse:
+        """Update a receipt"""
+        print(f"=== UPDATE RECEIPT ===")
+        print(f"DEBUG: User ID: {user_id}")
+        print(f"DEBUG: Receipt ID: {receipt_id}")
+        print(f"DEBUG: Update data: {receipt_data}")
+        
+        if not supabase:
+            print("DEBUG: Supabase not configured")
+            raise HTTPException(status_code=500, detail="Supabase not configured.")
+        
+        try:
+            # First check if receipt exists and belongs to user
+            print(f"DEBUG: Checking if receipt exists...")
+            check_response = supabase.table("receipts").select("*").eq("id", receipt_id).eq("account_id", user_id).execute()
+            print(f"DEBUG: Check response: {check_response}")
+            
+            if not check_response.data:
+                print("DEBUG: Receipt not found")
+                raise HTTPException(status_code=404, detail="Receipt not found")
+            
+            # Prepare update data (only include non-None values)
+            update_data = {}
+            if receipt_data.name is not None:
+                update_data["name"] = receipt_data.name
+            if receipt_data.description is not None:
+                update_data["description"] = receipt_data.description
+            if receipt_data.amount is not None:
+                update_data["amount"] = receipt_data.amount
+            if receipt_data.date_of_purchase is not None:
+                update_data["date_of_purchase"] = receipt_data.date_of_purchase
+            
+            print(f"DEBUG: Update data to apply: {update_data}")
+            
+            if not update_data:
+                print("DEBUG: No fields to update")
+                raise HTTPException(status_code=400, detail="No fields to update")
+            
+            # Update the receipt
+            print(f"DEBUG: Updating receipt in database...")
+            response = supabase.table("receipts").update(update_data).eq("id", receipt_id).eq("account_id", user_id).execute()
+            print(f"DEBUG: Update response: {response}")
+            
+            if not response.data:
+                print("DEBUG: No receipt updated")
+                raise HTTPException(status_code=404, detail="Receipt not found")
+            
+            receipt = ReceiptResponse(**response.data[0])
+            print(f"DEBUG: Updated receipt: {receipt}")
+            return receipt
+            
+        except HTTPException:
+            print("DEBUG: Re-raising HTTPException")
+            raise
+        except Exception as e:
+            print(f"DEBUG: Update receipt error: {str(e)}")
             print(f"DEBUG: Traceback: {traceback.format_exc()}")
             raise HTTPException(status_code=400, detail=str(e)) 

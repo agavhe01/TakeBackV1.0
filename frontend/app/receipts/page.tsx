@@ -5,6 +5,7 @@ import { Plus, Filter, ArrowLeftRight, Edit, Trash2 } from 'lucide-react'
 import DashboardLayout from '../../components/DashboardLayout'
 import ReceiptModal from '../../components/ReceiptModal'
 import ReceiptDetailsModal from '../../components/ReceiptDetailsModal'
+import ReceiptModal2 from '../../components/ReceiptModal2'
 import { API_URLS, getReceiptUrl } from '../../config'
 
 interface Receipt {
@@ -24,6 +25,8 @@ export default function ReceiptsPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+    const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null)
     const [isAuthenticated, setIsAuthenticated] = useState(false)
 
     // Receipt details for the second modal
@@ -107,6 +110,12 @@ export default function ReceiptsPage() {
                 return
             }
 
+            // Only create receipt if we have uploaded file data
+            if (!uploadedFileUrl) {
+                console.error('No file uploaded - cannot create receipt')
+                return
+            }
+
             // Create the receipt record in the database
             const response = await fetch(API_URLS.RECEIPTS, {
                 method: 'POST',
@@ -161,6 +170,67 @@ export default function ReceiptsPage() {
 
     const getTotalAmount = () => {
         return receipts.reduce((total, r) => total + (r.amount || 0), 0)
+    }
+
+    const handleEditReceipt = (receipt: Receipt) => {
+        setSelectedReceipt(receipt)
+        setIsEditModalOpen(true)
+    }
+
+    const handleUpdateReceipt = async (receiptData: {
+        name: string
+        amount: number
+        dateOfPurchase: string
+        description?: string
+    }) => {
+        if (!selectedReceipt) return
+
+        try {
+            const token = localStorage.getItem('access_token')
+            if (!token) {
+                console.log('No authentication token found for update operation')
+                return
+            }
+
+            const url = getReceiptUrl(selectedReceipt.id)
+            const requestBody = {
+                name: receiptData.name,
+                description: receiptData.description,
+                amount: receiptData.amount,
+                date_of_purchase: receiptData.dateOfPurchase
+            }
+
+            console.log('Updating receipt:', {
+                url,
+                method: 'PUT',
+                receiptId: selectedReceipt.id,
+                requestBody
+            })
+
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(requestBody)
+            })
+
+            console.log('Update response status:', response.status)
+            console.log('Update response headers:', response.headers)
+
+            if (response.ok) {
+                // Refresh receipts list
+                await fetchReceipts()
+                setIsEditModalOpen(false)
+                setSelectedReceipt(null)
+            } else {
+                const errorText = await response.text()
+                console.error('Failed to update receipt:', response.status, response.statusText, errorText)
+            }
+        } catch (error) {
+            console.error('Error updating receipt:', error)
+        }
     }
 
     const handleDeleteReceipt = async (receiptId: string) => {
@@ -285,14 +355,12 @@ export default function ReceiptsPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <div className="flex space-x-2">
-                                                <a
-                                                    href={receipt.url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
+                                                <button
+                                                    onClick={() => handleEditReceipt(receipt)}
                                                     className="text-blue-600 hover:text-blue-900"
                                                 >
                                                     <Edit className="h-4 w-4" />
-                                                </a>
+                                                </button>
                                                 <button
                                                     onClick={() => handleDeleteReceipt(receipt.id)}
                                                     className="text-red-600 hover:text-red-900"
@@ -351,6 +419,18 @@ export default function ReceiptsPage() {
                     fileName={uploadedFileName}
                     fileType={uploadedFileType}
                     onSave={handleSaveReceipt}
+                />
+
+                {/* Edit Modal */}
+                <ReceiptModal2
+                    key={`edit-modal-${selectedReceipt?.id}`} // Force re-render when receipt changes
+                    isOpen={isEditModalOpen}
+                    onClose={() => {
+                        setIsEditModalOpen(false)
+                        setSelectedReceipt(null)
+                    }}
+                    receipt={selectedReceipt || undefined}
+                    onSave={handleUpdateReceipt}
                 />
             </div>
         </DashboardLayout>

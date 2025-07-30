@@ -5,30 +5,108 @@ import { X } from 'lucide-react'
 import PDFPreviewer, { PDFPreviewerHandle } from './PDFPreviewer'
 import ImagePreviewer from './ImagePreviewer'
 
+interface Receipt {
+    id: string
+    name: string
+    type: string
+    description?: string
+    amount?: number
+    url: string
+    date_added: string
+    date_of_purchase: string
+    account_id: string
+}
+
 interface ReceiptModal2Props {
     isOpen: boolean
     onClose: () => void
     fileUrl?: string // Add optional fileUrl prop
     fileName?: string // Add optional fileName prop
+    receipt?: Receipt // Add optional receipt prop for editing
+    onSave?: (receiptData: {
+        name: string
+        amount: number
+        dateOfPurchase: string
+        description?: string
+    }) => void // Add optional onSave prop
 }
 
-export default function ReceiptModal2({ isOpen, onClose, fileUrl, fileName }: ReceiptModal2Props) {
-    const [name, setName] = useState('Dine Inn Diner Meal')
-    const [description, setDescription] = useState('Dine Inn Dinner Meal\n123 Main Street\nGreat Meal')
-    const [amount, setAmount] = useState('200')
+export default function ReceiptModal2({ isOpen, onClose, fileUrl, fileName, receipt, onSave }: ReceiptModal2Props) {
+    const [name, setName] = useState('')
+    const [description, setDescription] = useState('')
+    const [amount, setAmount] = useState('')
     const [dateAdded, setDateAdded] = useState('')
-    const [dateOfPurchase, setDateOfPurchase] = useState('2025-07-28')
+    const [dateOfPurchase, setDateOfPurchase] = useState('')
     const pdfPreviewerRef = useRef<PDFPreviewerHandle>(null)
 
     // Uneditable fields (for now, these would be populated from the uploaded file or API)
-    const [type, setType] = useState('Image')
-    const [receiptId, setReceiptId] = useState('550e8400-e29b-41d4-a716-446655440000') // UUID format
-    const [url, setUrl] = useState('https://example.com/receipts/rec-2024-001.pdf')
-    const [accountId, setAccountId] = useState('550e8400-e29b-41d4-a716-446655440001') // UUID format
+    const [type, setType] = useState('')
+    const [receiptId, setReceiptId] = useState('')
+    const [url, setUrl] = useState('')
+    const [accountId, setAccountId] = useState('')
+
+    // Load receipt data when editing
+    useEffect(() => {
+        if (receipt) {
+            setName(receipt.name)
+            setDescription(receipt.description || '')
+            setAmount(receipt.amount ? receipt.amount.toString() : '')
+            setDateAdded(receipt.date_added)
+            // Convert date format for input field (YYYY-MM-DD)
+            if (receipt.date_of_purchase) {
+                const date = new Date(receipt.date_of_purchase)
+                const formattedDate = date.toISOString().split('T')[0]
+                setDateOfPurchase(formattedDate)
+            } else {
+                setDateOfPurchase('')
+            }
+            setType(receipt.type)
+            setReceiptId(receipt.id)
+            setUrl(receipt.url)
+            setAccountId(receipt.account_id)
+        } else {
+            // Reset form for new receipt
+            setName('')
+            setDescription('')
+            setAmount('')
+            setDateAdded('')
+            setDateOfPurchase('')
+            setType('')
+            setReceiptId('')
+            setUrl('')
+            setAccountId('')
+        }
+    }, [receipt])
 
     const handleSave = () => {
-        // Close modal for now as requested
-        onClose()
+        if (!name.trim()) {
+            alert('Please enter a receipt name')
+            return
+        }
+
+        if (!amount.trim()) {
+            alert('Please enter an amount')
+            return
+        }
+
+        if (!dateOfPurchase) {
+            alert('Please enter a date of purchase')
+            return
+        }
+
+        const receiptData = {
+            name: name.trim(),
+            amount: parseFloat(amount),
+            dateOfPurchase: dateOfPurchase,
+            description: description.trim() || undefined
+        }
+
+        if (onSave) {
+            onSave(receiptData)
+        } else {
+            // Default behavior - just close modal
+            onClose()
+        }
     }
 
     const handleCancel = () => {
@@ -41,14 +119,17 @@ export default function ReceiptModal2({ isOpen, onClose, fileUrl, fileName }: Re
     }
 
     const renderPreview = () => {
-        // Check if it's a PDF file
-        const isPDF = fileUrl && (fileUrl.toLowerCase().endsWith('.pdf') || fileUrl.toLowerCase().includes('pdf'));
+        // Use receipt URL if editing, otherwise use fileUrl
+        const previewUrl = receipt ? receipt.url : fileUrl
 
-        if (fileUrl && (fileUrl.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp|tiff|svg)$/) || fileUrl.toLowerCase().includes('image'))) {
+        // Check if it's a PDF file
+        const isPDF = previewUrl && (previewUrl.toLowerCase().endsWith('.pdf') || previewUrl.toLowerCase().includes('pdf'));
+
+        if (previewUrl && (previewUrl.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp|tiff|svg)$/) || previewUrl.toLowerCase().includes('image'))) {
             return (
                 <div className="flex flex-col">
                     <label className="block text-sm font-medium mb-2">Image Preview</label>
-                    <ImagePreviewer url={fileUrl} fixedWidth={350} />
+                    <ImagePreviewer url={previewUrl} fixedWidth={350} />
                 </div>
             )
         } else if (isPDF) {
@@ -57,7 +138,7 @@ export default function ReceiptModal2({ isOpen, onClose, fileUrl, fileName }: Re
                     <label className="block text-sm font-medium mb-2">PDF Preview</label>
                     <PDFPreviewer
                         ref={pdfPreviewerRef}
-                        url={fileUrl}
+                        url={previewUrl}
                         fixedWidth={350}
                     />
                 </div>
@@ -67,9 +148,9 @@ export default function ReceiptModal2({ isOpen, onClose, fileUrl, fileName }: Re
                 <div className="flex justify-center">
                     <div className="text-gray-600 text-center">
                         <p>File preview not available</p>
-                        {fileUrl && (
+                        {previewUrl && (
                             <a
-                                href={fileUrl}
+                                href={previewUrl}
                                 download={fileName || 'receipt.pdf'}
                                 className="text-blue-600 hover:text-blue-800 underline"
                             >
@@ -91,10 +172,13 @@ export default function ReceiptModal2({ isOpen, onClose, fileUrl, fileName }: Re
                 <div className="flex items-center justify-between p-6 border-b border-gray-200">
                     <div>
                         <h2 className="text-xl font-semibold text-gray-900">
-                            Add Receipt Information
+                            {receipt ? 'Edit Receipt Information' : 'Add Receipt Information'}
                         </h2>
                         <p className="text-sm text-gray-600 mt-1">
-                            Upload successful. Kindly complete the receipt information fields below, or ask AI Parse Information and confirm output after.
+                            {receipt
+                                ? 'Edit the receipt information below, or use AI Parse to extract information from the document.'
+                                : 'Upload successful. Kindly complete the receipt information fields below, or ask AI Parse Information and confirm output after.'
+                            }
                         </p>
                     </div>
                     <button
@@ -276,7 +360,7 @@ export default function ReceiptModal2({ isOpen, onClose, fileUrl, fileName }: Re
                         onClick={handleSave}
                         className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
-                        Save Receipt
+                        {receipt ? 'Update Receipt' : 'Save Receipt'}
                     </button>
                 </div>
             </div>

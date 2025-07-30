@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.security import HTTPBearer
 from typing import Optional
-from ..models.receipt import ReceiptCreate, ReceiptResponse, ReceiptUploadResponse
+from ..models.receipt import ReceiptCreate, ReceiptResponse, ReceiptUploadResponse, ReceiptUpdate
 from ..services.receipt_service import ReceiptService
 from ..utils.jwt import verify_token
 
@@ -98,6 +98,27 @@ async def get_receipt(receipt_id: str, token: str = Depends(security)):
         
     except Exception as e:
         print(f"DEBUG: Get receipt endpoint error: {str(e)}")
+        raise
+
+@router.put("/{receipt_id}", response_model=ReceiptResponse)
+async def update_receipt(receipt_id: str, receipt_data: ReceiptUpdate, token: str = Depends(security)):
+    """Update a receipt"""
+    print(f"=== UPDATE RECEIPT API ENDPOINT ===")
+    print(f"DEBUG: Received update receipt request")
+    print(f"DEBUG: Receipt ID: {receipt_id}")
+    print(f"DEBUG: Update data: {receipt_data}")
+    
+    try:
+        payload = verify_token(token.credentials)
+        user_id = payload.get("sub")
+        print(f"DEBUG: Authenticated user ID: {user_id}")
+        
+        result = await ReceiptService.update_receipt(user_id, receipt_id, receipt_data)
+        print(f"DEBUG: Receipt updated successfully: {result}")
+        return result
+        
+    except Exception as e:
+        print(f"DEBUG: Update receipt endpoint error: {str(e)}")
         raise
 
 @router.delete("/{receipt_id}")
