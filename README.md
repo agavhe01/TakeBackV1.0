@@ -1,6 +1,6 @@
 # TakeBack V1.0
 
-A credit/debit card management and spend management web application built with FastAPI, Next.js, React, TypesScript, PostgreSQL, Supabase, and Tailwind CSS.
+A credit/debit card management and spend management web application built with FastAPI, Next.js, React, TypeScript, PostgreSQL, Supabase, and Tailwind CSS.
 
 ## 🌐 **Live Application Links**
 
@@ -19,47 +19,47 @@ TakeBack helps organizations manage their credit card spending through comprehen
 ```
 takeback/
 ├── backend/                 # FastAPI backend (modular structure)
-│   ├── app/                # Main application package
-│   │   ├── main.py         # FastAPI app initialization
-│   │   ├── config/         # Configuration management
-│   │   │   ├── settings.py # Environment variables & config
-│   │   │   └── database.py # Supabase client setup
-│   │   ├── models/         # Pydantic data models
-│   │   │   ├── auth.py     # User authentication models
-│   │   │   ├── budget.py   # Budget models
-│   │   │   ├── card.py     # Card models
+│   ├── app/                 # Main application package
+│   │   ├── main.py          # FastAPI app initialization
+│   │   ├── config/          # Configuration management
+│   │   │   ├── settings.py  # Environment variables & config
+│   │   │   └── database.py  # Supabase client setup
+│   │   ├── models/          # Pydantic data models
+│   │   │   ├── auth.py      # User authentication models
+│   │   │   ├── budget.py    # Budget models
+│   │   │   ├── card.py      # Card models
 │   │   │   ├── transaction.py # Transaction models
-│   │   │   ├── policy.py   # Policy models
+│   │   │   ├── policy.py    # Policy models
 │   │   │   └── analytics.py # Analytics models
-│   │   ├── services/       # Business logic layer
-│   │   │   ├── auth_service.py     # Authentication logic
-│   │   │   ├── budget_service.py   # Budget business logic
-│   │   │   ├── card_service.py     # Card business logic
-│   │   │   ├── transaction_service.py # Transaction business logic
-│   │   │   ├── policy_service.py   # Policy business logic
-│   │   │   └── analytics_service.py # Analytics business logic
-│   │   ├── api/            # API route handlers
-│   │   │   ├── auth.py     # Authentication endpoints
-│   │   │   ├── budgets.py  # Budget endpoints
-│   │   │   ├── cards.py    # Card endpoints
+│   │   ├── services/        # Business logic layer
+│   │   │   ├── auth_service.py         # Authentication logic
+│   │   │   ├── budget_service.py       # Budget business logic
+│   │   │   ├── card_service.py         # Card business logic
+│   │   │   ├── transaction_service.py  # Transaction business logic
+│   │   │   ├── policy_service.py       # Policy business logic
+│   │   │   └── analytics_service.py    # Analytics business logic
+│   │   ├── api/             # API route handlers
+│   │   │   ├── auth.py      # Authentication endpoints
+│   │   │   ├── budgets.py   # Budget endpoints
+│   │   │   ├── cards.py     # Card endpoints
 │   │   │   ├── transactions.py # Transaction endpoints
-│   │   │   ├── policies.py # Policy endpoints
+│   │   │   ├── policies.py  # Policy endpoints
 │   │   │   └── analytics.py # Analytics endpoints
-│   │   ├── middleware/     # Custom middleware
-│   │   └── utils/          # Utility functions
-│   │       └── jwt.py      # JWT token utilities
-│   ├── run.py              # Development server entry point
-│   ├── deploy.py           # Production deployment entry point
-│   ├── main.py             # Legacy entry point (redirects to run.py)
-│   ├── requirements.txt    # Python dependencies
-│   ├── vercel.json         # Vercel deployment configuration
-│   └── env.example         # Environment variables template
-├── frontend/               # Next.js frontend
-│   ├── app/               # Next.js app directory
-│   ├── components/        # React components
-│   ├── package.json       # Node.js dependencies
-│   ├── vercel.json        # Vercel deployment configuration
-│   └── env.local          # Frontend environment variables
+│   │   ├── middleware/      # Custom middleware
+│   │   └── utils/           # Utility functions
+│   │       └── jwt.py       # JWT token utilities
+│   ├── run.py               # Development server entry point
+│   ├── deploy.py            # Production deployment entry point
+│   ├── main.py              # Legacy entry point (redirects to run.py)
+│   ├── requirements.txt     # Python dependencies
+│   ├── vercel.json          # Vercel deployment configuration
+│   └── env.example          # Environment variables template
+├── frontend/                # Next.js frontend
+│   ├── app/                 # Next.js app directory
+│   ├── components/          # React components
+│   ├── package.json         # Node.js dependencies
+│   ├── vercel.json          # Vercel deployment configuration
+│   └── env.local            # Frontend environment variables
 └── README.md
 ```
 
@@ -390,9 +390,29 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for budget limit validation
+-- Create trigger for budget limit validation (NOT WORKING, CURRENTLY NOT ACTIVE ON SUPABASE)
 CREATE TRIGGER budget_limit_validation
     BEFORE INSERT OR UPDATE ON transactions
     FOR EACH ROW
     EXECUTE FUNCTION check_budget_limit();
 ```
+
+IMPROVEMENTS TO CONSIDER 
+
+* differentiate admin/viewer accounts and specify access levels
+* user definded balance durations
+* Langchain libraries to start AI functionality
+* AI automitically fill transactions for you
+* AI automaticaly suggests receipts when adding transactions
+* Profiling on Dashboard to increase perfomance
+    --> maybe REDUX to manage state will increase perfoamce, 
+        avoid reliance on API reads and writes
+
+- Multiple transaction import from csv
+    --> pdf, image AI to parse transactions from statement
+
+* Change UI and remove onboarding features
+
+* notification and verification service
+
+* security research to learn how to storely save credit card infomation
