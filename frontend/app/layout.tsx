@@ -7,6 +7,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
     title: 'TakeBack - Credit Management & Spend Management',
     description: 'Issue Cards. Control Spend. Maximize Impact.',
+    icons: {
+        icon: '/img/favicon.png',
+    },
 }
 
 export default function RootLayout({
