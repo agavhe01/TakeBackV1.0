@@ -166,10 +166,10 @@ export default function ReceiptModal2({ isOpen, onClose, fileUrl, fileName, rece
     if (!isOpen) return null
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl mx-4 h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[95vh] flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
                     <div>
                         <h2 className="text-xl font-semibold text-gray-900">
                             {receipt ? 'Edit Receipt Information' : 'Add Receipt Information'}
@@ -190,11 +190,11 @@ export default function ReceiptModal2({ isOpen, onClose, fileUrl, fileName, rece
                 </div>
 
                 {/* Main Content */}
-                <div className="flex-1 flex p-6 space-x-6">
+                <div className="flex-1 flex p-6 space-x-6 min-h-0">
                     {/* Left Column - Document Preview */}
-                    <div className="flex-1 flex flex-col">
+                    <div className="flex-1 flex flex-col min-h-0">
                         <h3 className="text-lg font-medium text-gray-900 mb-4">Document Preview</h3>
-                        <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-4 min-h-0">
                             <div className="bg-white h-full rounded border border-gray-200 p-4 overflow-auto">
                                 {renderPreview()}
                             </div>
@@ -212,9 +212,9 @@ export default function ReceiptModal2({ isOpen, onClose, fileUrl, fileName, rece
                     </div>
 
                     {/* Right Column - Receipt Information */}
-                    <div className="flex-1 flex flex-col">
+                    <div className="flex-1 flex flex-col min-h-0">
                         <h3 className="text-lg font-medium text-gray-900 mb-4">Receipt Information</h3>
-                        <div className="space-y-4">
+                        <div className="space-y-4 overflow-y-auto flex-1">
                             {/* Name Field */}
                             <div>
                                 <label htmlFor="receipt-name" className="block text-xs font-medium text-gray-700 mb-1">
@@ -330,26 +330,12 @@ export default function ReceiptModal2({ isOpen, onClose, fileUrl, fileName, rece
                                     readOnly
                                 />
                             </div>
-
-                            {/* Account ID Field (Uneditable) */}
-                            <div>
-                                <label htmlFor="receipt-account-id" className="block text-xs font-medium text-gray-700 mb-1">
-                                    Account ID
-                                </label>
-                                <input
-                                    type="text"
-                                    id="receipt-account-id"
-                                    value={accountId}
-                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
-                                    readOnly
-                                />
-                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+                <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 flex-shrink-0">
                     <button
                         onClick={handleCancel}
                         className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
