@@ -7,8 +7,8 @@ class UserSignup(BaseModel):
     email: str
     phone: str
     password: str
-    organization_legal_name: str
-    orginazation_ein_number: str
+    organization_legal_name: Optional[str] = None
+    orginazation_ein_number: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: str
@@ -20,8 +20,8 @@ class UserResponse(BaseModel):
     last_name: str
     phone: str
     email: str
-    organization_legal_name: str
-    orginazation_ein_number: str
+    organization_legal_name: Optional[str] = None
+    orginazation_ein_number: Optional[str] = None
     date_of_birth: Optional[str] = None
     ssn: Optional[str] = None
     address: Optional[str] = None

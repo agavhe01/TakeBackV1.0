@@ -1,0 +1,41 @@
+name: Validate Supabase Migrations
+
+on:
+  pull_request:
+    paths:
+      - "database/supabase/**"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check migration filename format
+        run: |
+          for file in $(git diff --name-only --diff-filter=A origin/main...HEAD -- 'database/supabase/migrations/*.sql'); do
+            basename=$(basename "$file")
+            if ! echo "$basename" | grep -qE '^[0-9]{14}_[a-z_]+\.sql$'; then
+              echo "::error::Invalid migration filename: $basename (expected YYYYMMDDHHMMSS_description.sql)"
+              exit 1
+            fi
+          done
+
+      - name: Warn on destructive operations
+        run: |
+          for file in $(git diff --name-only --diff-filter=A origin/main...HEAD -- 'database/supabase/migrations/*.sql'); do
+            if grep -qiE '\bDROP\b' "$file"; then
+              echo "::warning file=$file::Contains DROP statement — review carefully"
+            fi
+          done
+
+      - name: Check timestamp ordering
+        run: |
+          timestamps=$(ls database/supabase/migrations/*.sql 2>/dev/null | xargs -I{} basename {} | cut -d_ -f1 | sort -n)
+          sorted=$(echo "$timestamps" | sort -n)
+          if [ "$timestamps" != "$sorted" ]; then
+            echo "::error::Migration timestamps are not in order"
+            exit 1
+          fi

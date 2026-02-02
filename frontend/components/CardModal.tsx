@@ -483,7 +483,7 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                                                 <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
                                                                     <div
                                                                         className={`h-2 rounded-full transition-all duration-300 ${percentageUsed > 90 ? 'bg-red-500' :
-                                                                                percentageUsed > 75 ? 'bg-yellow-500' : 'bg-green-500'
+                                                                            percentageUsed > 75 ? 'bg-yellow-500' : 'bg-green-500'
                                                                             }`}
                                                                         style={{ width: `${Math.min(percentageUsed, 100)}%` }}
                                                                     ></div>
@@ -521,7 +521,7 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                         type="text"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                                         placeholder="Enter card name"
                                     />
                                 </div>
@@ -532,7 +532,7 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                     <select
                                         value={formData.status}
                                         onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                                        className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                                     >
                                         <option value="issued">Issued</option>
                                         <option value="frozen">Frozen</option>
@@ -549,7 +549,7 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                     type="text"
                                     value={formData.cardholder_name}
                                     onChange={(e) => setFormData({ ...formData, cardholder_name: e.target.value })}
-                                    className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                    className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                                     placeholder="Enter cardholder name"
                                 />
                             </div>
@@ -563,7 +563,7 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                         type="text"
                                         value={formData.cvv}
                                         onChange={(e) => setFormData({ ...formData, cvv: e.target.value })}
-                                        className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                                         placeholder="123"
                                         maxLength={3}
                                     />
@@ -576,7 +576,7 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                         type="text"
                                         value={formData.expiry}
                                         onChange={(e) => setFormData({ ...formData, expiry: e.target.value })}
-                                        className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                                         placeholder="MM/YY"
                                     />
                                 </div>
@@ -588,7 +588,7 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                         type="text"
                                         value={formData.zipcode}
                                         onChange={(e) => setFormData({ ...formData, zipcode: e.target.value })}
-                                        className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                                         placeholder="12345"
                                     />
                                 </div>
@@ -602,7 +602,7 @@ export default function CardModal({ isOpen, onClose, card, onSave, onDelete, mod
                                     value={formData.address}
                                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                                     rows={3}
-                                    className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                    className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                                     placeholder="Enter billing address"
                                 />
                             </div>

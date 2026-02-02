@@ -437,14 +437,14 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Stats Cards Skeleton */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                         {[1, 2, 3, 4].map((i) => (
                             <SkeletonCard key={i} />
                         ))}
                     </div>
 
                     {/* Charts and Tables Skeleton */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
                         <SkeletonChart />
                         <SkeletonTable />
                     </div>
@@ -493,16 +493,16 @@ export default function DashboardPage() {
                     </div>
                 </div>
             )}
-            <div className="p-8 space-y-8">
+            <div className="p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8">
                 {/* Welcome Section */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
                             Welcome back, {user?.first_name || 'User'}
                         </h1>
                         <p className="text-gray-600 mt-1">Here's what's happening with your account</p>
                     </div>
-                    <div className="flex space-x-3">
+                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
                         <button
                             onClick={() => router.push('/transactions')}
                             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
@@ -519,7 +519,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Top Spending Budgets Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
                     {/* Spending Analytics */}
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                         <div className="flex items-center justify-between mb-6">
@@ -720,7 +720,7 @@ export default function DashboardPage() {
                 {/* Account Balances Section */}
                 <div>
                     <h2 className="text-xl font-semibold text-gray-900 mb-6">Account Balances</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                         {balancesLoading ? (
                             // Show skeleton cards while loading
                             [1, 2, 3].map((i) => (
@@ -790,8 +790,8 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Cards Summary Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <div className="flex items-center justify-between">
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
                         <div className="flex items-center space-x-3">
                             <div className="bg-blue-100 p-3 rounded-full">
                                 <CreditCard className="h-6 w-6 text-blue-600" />

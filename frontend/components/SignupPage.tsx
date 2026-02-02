@@ -13,8 +13,8 @@ interface SignupFormData {
     phone: string
     password: string
     confirm_password: string
-    organization_legal_name: string
-    orginazation_ein_number: string
+    organization_legal_name?: string
+    orginazation_ein_number?: string
 }
 
 export default function SignupPage() {
@@ -41,19 +41,26 @@ export default function SignupPage() {
         router.push('/onboarding')
     }
 
-    const onSubmit = async (data: SignupFormData) => {
-        console.log('Form submitted with data:', data)
-        console.log('Environment variables:')
-        console.log('NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL)
-        console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+    // TEMPORARY TEST FUNCTION - REMOVE AFTER TESTING
+    const testSignupWithoutOrganization = async () => {
+        console.log('=== TESTING SIGNUP WITHOUT ORGANIZATION FIELDS ===')
+
+        const testData = {
+            first_name: 'Test',
+            last_name: 'User',
+            email: `test${Date.now()}@example.com`,
+            phone: '1234567890',
+            password: 'testpassword123',
+            confirm_password: 'testpassword123'
+            // No organization fields
+        }
+
+        console.log('Test data:', testData)
 
         setIsLoading(true)
         setError('')
 
-        // Get API URL with fallback
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-        console.log('Using API URL:', apiUrl)
-        console.log('Full request URL:', `${apiUrl}/api/auth/signup`)
 
         try {
             const response = await fetch(`${apiUrl}/api/auth/signup`, {
@@ -61,10 +68,77 @@ export default function SignupPage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(data),
+                body: JSON.stringify(testData),
+            })
+
+            console.log('Test response status:', response.status)
+            const result = await response.json()
+            console.log('Test response result:', result)
+
+            if (response.ok) {
+                console.log('✅ TEST PASSED: Signup without organization fields works!')
+                setError('✅ TEST PASSED: Signup without organization fields works!')
+            } else {
+                console.log('❌ TEST FAILED:', result)
+                setError(`❌ TEST FAILED: ${JSON.stringify(result)}`)
+            }
+        } catch (err) {
+            console.error('Test error:', err)
+            setError(`Test error: ${err}`)
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const onSubmit = async (data: SignupFormData) => {
+        console.log('Form submitted with data:', data)
+        console.log('Environment variables:')
+        console.log('NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL)
+        console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+
+        // Prevent multiple submissions
+        if (isLoading) {
+            console.log('Form submission blocked - already loading')
+            return
+        }
+
+        setIsLoading(true)
+        setError('')
+
+        // Filter out empty optional fields
+        const submitData = {
+            ...data,
+            organization_legal_name: data.organization_legal_name?.trim() || undefined,
+            orginazation_ein_number: data.orginazation_ein_number?.trim() || undefined
+        }
+
+        // Remove undefined values
+        Object.keys(submitData).forEach(key => {
+            if (submitData[key as keyof typeof submitData] === undefined) {
+                delete submitData[key as keyof typeof submitData]
+            }
+        })
+
+        console.log('Filtered submit data:', submitData)
+
+        // Get API URL with fallback
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        console.log('Using API URL:', apiUrl)
+        console.log('Full request URL:', `${apiUrl}/api/auth/signup`)
+
+        try {
+            console.log('Making fetch request...')
+            const response = await fetch(`${apiUrl}/api/auth/signup`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(submitData),
             })
 
             console.log('Response status:', response.status)
+            console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+
             const result = await response.json()
             console.log('Response result:', result)
 
@@ -77,20 +151,40 @@ export default function SignupPage() {
                 console.log('User automatically logged in after signup')
                 handleSignupSuccess()
             } else {
-                setError(result.detail || 'Signup failed')
+                // Handle different types of error responses
+                let errorMessage = 'Signup failed'
+
+                if (result.detail) {
+                    if (Array.isArray(result.detail)) {
+                        // Handle validation errors array
+                        errorMessage = result.detail.map((error: any) => error.msg || error.message || 'Validation error').join(', ')
+                    } else if (typeof result.detail === 'string') {
+                        errorMessage = result.detail
+                    } else {
+                        errorMessage = 'Signup failed - please check your information'
+                    }
+                }
+
+                setError(errorMessage)
             }
         } catch (err) {
             console.error('Signup error:', err)
+            console.error('Error details:', {
+                name: err instanceof Error ? err.name : 'Unknown',
+                message: err instanceof Error ? err.message : String(err),
+                stack: err instanceof Error ? err.stack : 'No stack trace'
+            })
             setError('Network error. Please try again.')
         } finally {
+            console.log('Setting isLoading to false')
             setIsLoading(false)
         }
     }
 
     return (
-        <div className="min-h-screen flex">
+        <div className="min-h-screen flex flex-col lg:flex-row">
             {/* Left Section - Signup Form */}
-            <div className="flex-1 bg-white flex items-center justify-center p-8">
+            <div className="flex-1 bg-white flex items-center justify-center p-4 sm:p-8">
                 <div className="w-full max-w-md">
                     <div className="w-full">
                         {/* Header */}
@@ -122,14 +216,14 @@ export default function SignupPage() {
                             )}
 
                             {/* Name Fields */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         First *
                                     </label>
                                     <input
                                         type="text"
-                                        className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.first_name ? 'border-red-300' : 'border-gray-300'
+                                        className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.first_name ? 'border-red-300' : 'border-gray-300'
                                             }`}
                                         {...register('first_name', {
                                             required: 'First name is required',
@@ -150,7 +244,7 @@ export default function SignupPage() {
                                     </label>
                                     <input
                                         type="text"
-                                        className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.last_name ? 'border-red-300' : 'border-gray-300'
+                                        className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.last_name ? 'border-red-300' : 'border-gray-300'
                                             }`}
                                         {...register('last_name', {
                                             required: 'Last name is required',
@@ -173,7 +267,7 @@ export default function SignupPage() {
                                 </label>
                                 <input
                                     type="email"
-                                    className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.email ? 'border-red-300' : 'border-gray-300'
+                                    className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.email ? 'border-red-300' : 'border-gray-300'
                                         }`}
                                     {...register('email', {
                                         required: 'Email is required',
@@ -201,7 +295,7 @@ export default function SignupPage() {
                                     </div>
                                     <input
                                         type="tel"
-                                        className={`block w-full pl-16 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.phone ? 'border-red-300' : 'border-gray-300'}`}
+                                        className={`block w-full pl-16 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.phone ? 'border-red-300' : 'border-gray-300'}`}
                                         {...register('phone', {
                                             required: 'Phone number is required'
                                         })}
@@ -213,7 +307,7 @@ export default function SignupPage() {
                             </div>
 
                             {/* Password Fields */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Password *
@@ -221,7 +315,7 @@ export default function SignupPage() {
                                     <div className="relative">
                                         <input
                                             type={showPassword ? 'text' : 'password'}
-                                            className={`block w-full pr-10 py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.password ? 'border-red-300' : 'border-gray-300'
+                                            className={`block w-full pr-10 py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.password ? 'border-red-300' : 'border-gray-300'
                                                 }`}
                                             {...register('password', {
                                                 required: 'Password is required',
@@ -255,7 +349,7 @@ export default function SignupPage() {
                                     <div className="relative">
                                         <input
                                             type={showConfirmPassword ? 'text' : 'password'}
-                                            className={`block w-full pr-10 py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.confirm_password ? 'border-red-300' : 'border-gray-300'
+                                            className={`block w-full pr-10 py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.confirm_password ? 'border-red-300' : 'border-gray-300'
                                                 }`}
                                             {...register('confirm_password', {
                                                 required: 'Please confirm your password',
@@ -284,47 +378,28 @@ export default function SignupPage() {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     <span className="flex items-center">
-                                        Organization Legal Name *
+                                        Organization Legal Name
                                         <Info className="h-4 w-4 ml-1 text-gray-400" />
                                     </span>
                                 </label>
                                 <input
                                     type="text"
-                                    className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.organization_legal_name ? 'border-red-300' : 'border-gray-300'
-                                        }`}
-                                    {...register('organization_legal_name', {
-                                        required: 'Organization name is required',
-                                        minLength: {
-                                            value: 1,
-                                            message: 'Organization name is required'
-                                        }
-                                    })}
+                                    className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900"
+                                    {...register('organization_legal_name')}
                                 />
-                                {errors.organization_legal_name && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.organization_legal_name.message}</p>
-                                )}
                             </div>
 
                             {/* EIN */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Organization Employer Identification Number (EIN) *
+                                    Organization Employer Identification Number (EIN)
                                 </label>
                                 <input
                                     type="text"
-                                    className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.orginazation_ein_number ? 'border-red-300' : 'border-gray-300'}`}
+                                    className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900"
                                     placeholder="12-3456789"
-                                    {...register('orginazation_ein_number', {
-                                        required: 'EIN is required',
-                                        pattern: {
-                                            value: /^\d{2}-\d{7}$/,
-                                            message: 'Please enter EIN in format XX-XXXXXXX'
-                                        }
-                                    })}
+                                    {...register('orginazation_ein_number')}
                                 />
-                                {errors.orginazation_ein_number && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.orginazation_ein_number.message}</p>
-                                )}
                             </div>
 
 
@@ -353,13 +428,23 @@ export default function SignupPage() {
                                 )}
                                 Sign Up & Start Onboarding
                             </button>
+
+                            {/* TEMPORARY TEST BUTTON - REMOVE AFTER TESTING */}
+                            <button
+                                type="button"
+                                onClick={testSignupWithoutOrganization}
+                                disabled={isLoading}
+                                className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md transition duration-200 mt-2"
+                            >
+                                🧪 Test Signup Without Organization Fields
+                            </button>
                         </form>
                     </div>
                 </div>
             </div>
 
-            {/* Right Section - Feature Showcase */}
-            <div className="flex-1 bg-primary-500 flex items-center justify-center relative">
+            {/* Right Section - Feature Showcase (Hidden on mobile) */}
+            <div className="hidden lg:flex flex-1 bg-primary-500 items-center justify-center relative">
                 <FeatureCard />
             </div>
         </div>

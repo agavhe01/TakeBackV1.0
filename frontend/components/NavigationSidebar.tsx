@@ -13,7 +13,9 @@ import {
     ChevronDown,
     Leaf,
     LogOut,
-    Receipt
+    Receipt,
+    Menu,
+    X
 } from 'lucide-react'
 import PersonalSettingsModal from './PersonalSettingsModal'
 
@@ -38,9 +40,11 @@ interface NavigationSidebarProps {
         email: string
         initials: string
     }
+    isMobileOpen?: boolean
+    onMobileToggle?: () => void
 }
 
-export default function NavigationSidebar({ user }: NavigationSidebarProps) {
+export default function NavigationSidebar({ user, isMobileOpen, onMobileToggle }: NavigationSidebarProps) {
     const router = useRouter()
     const pathname = usePathname()
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -122,6 +126,14 @@ export default function NavigationSidebar({ user }: NavigationSidebarProps) {
         router.push('/signin')
     }
 
+    const handleNavigationClick = (href: string) => {
+        router.push(href)
+        // Close mobile menu after navigation
+        if (onMobileToggle) {
+            onMobileToggle()
+        }
+    }
+
     // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -140,87 +152,117 @@ export default function NavigationSidebar({ user }: NavigationSidebarProps) {
     }, [isDropdownOpen])
 
     return (
-        <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
-            {/* Branding */}
-            <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center">
-                        <Leaf className="h-5 w-5 text-white" />
+        <>
+            {/* Mobile Overlay */}
+            {isMobileOpen && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+                    onClick={onMobileToggle}
+                />
+            )}
+
+            {/* Sidebar */}
+            <div className={`
+                fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 h-screen flex flex-col transform transition-transform duration-300 ease-in-out
+                ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+            `}>
+                {/* Mobile Header with Close Button */}
+                <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200">
+                    <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center">
+                            <Leaf className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="text-xl font-bold text-gray-900">TakeBack</span>
                     </div>
-                    <span className="text-xl font-bold text-gray-900">TakeBack</span>
+                    <button
+                        onClick={onMobileToggle}
+                        className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                    >
+                        <X className="h-6 w-6" />
+                    </button>
                 </div>
-            </div>
 
-            {/* Navigation */}
-            <nav className="flex-1 p-4">
-                <ul className="space-y-2">
-                    {navigationItems.map((item) => {
-                        const Icon = item.icon
-                        const active = isActive(item.href)
-
-                        return (
-                            <li key={item.name}>
-                                <button
-                                    onClick={() => router.push(item.href)}
-                                    className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${active
-                                        ? 'bg-gray-100 text-gray-900'
-                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                                        }`}
-                                >
-                                    <Icon className="h-5 w-5" />
-                                    <span>{item.name}</span>
-                                </button>
-                            </li>
-                        )
-                    })}
-                </ul>
-            </nav>
-
-            {/* Bottom Section */}
-            <div className="p-4 border-t border-gray-200 space-y-2">
-                <button onClick={handlePersonalSettings} className="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors">
-                    <Settings className="h-5 w-5" />
-                    <span>Personal Settings</span>
-                </button>
-
-                <button className="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors">
-                    <MessageCircle className="h-5 w-5" />
-                    <span>Chat With Support</span>
-                </button>
-
-                {/* User Profile with Dropdown */}
-                {user && (
-                    <div className="relative" ref={dropdownRef}>
-                        <button
-                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                            className="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
-                        >
-                            <div className="w-8 h-8 bg-purple-500 rounded flex items-center justify-center">
-                                <span className="text-white text-sm font-medium">{user.initials}</span>
-                            </div>
-                            <div className="flex-1 min-w-0 text-left">
-                                <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                                <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                            </div>
-                            <ChevronDown className={`h-4 w-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        {/* Dropdown Menu */}
-                        {isDropdownOpen && (
-                            <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                                <button
-                                    onClick={handleSignout}
-                                    className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
-                                >
-                                    <LogOut className="h-4 w-4" />
-                                    <span>Sign Out</span>
-                                </button>
-                            </div>
-                        )}
+                {/* Desktop Branding */}
+                <div className="hidden lg:block p-6 border-b border-gray-200">
+                    <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center">
+                            <Leaf className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="text-xl font-bold text-gray-900">TakeBack</span>
                     </div>
-                )}
+                </div>
+
+                {/* Navigation */}
+                <nav className="flex-1 p-4">
+                    <ul className="space-y-2">
+                        {navigationItems.map((item) => {
+                            const Icon = item.icon
+                            const active = isActive(item.href)
+
+                            return (
+                                <li key={item.name}>
+                                    <button
+                                        onClick={() => handleNavigationClick(item.href)}
+                                        className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${active
+                                            ? 'bg-gray-100 text-gray-900'
+                                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        <Icon className="h-5 w-5" />
+                                        <span>{item.name}</span>
+                                    </button>
+                                </li>
+                            )
+                        })}
+                    </ul>
+                </nav>
+
+                {/* Bottom Section */}
+                <div className="p-4 border-t border-gray-200 space-y-2">
+                    <button onClick={handlePersonalSettings} className="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors">
+                        <Settings className="h-5 w-5" />
+                        <span>Personal Settings</span>
+                    </button>
+
+                    <button className="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors">
+                        <MessageCircle className="h-5 w-5" />
+                        <span>Chat With Support</span>
+                    </button>
+
+                    {/* User Profile with Dropdown */}
+                    {user && (
+                        <div className="relative" ref={dropdownRef}>
+                            <button
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                            >
+                                <div className="w-8 h-8 bg-purple-500 rounded flex items-center justify-center">
+                                    <span className="text-white text-sm font-medium">{user.initials}</span>
+                                </div>
+                                <div className="flex-1 min-w-0 text-left">
+                                    <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
+                                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                                </div>
+                                <ChevronDown className={`h-4 w-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {/* Dropdown Menu */}
+                            {isDropdownOpen && (
+                                <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                                    <button
+                                        onClick={handleSignout}
+                                        className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <LogOut className="h-4 w-4" />
+                                        <span>Sign Out</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+                <PersonalSettingsModal isOpen={isPersonalSettingsOpen} onClose={() => setIsPersonalSettingsOpen(false)} user={userData} />
             </div>
-            <PersonalSettingsModal isOpen={isPersonalSettingsOpen} onClose={() => setIsPersonalSettingsOpen(false)} user={userData} />
-        </div>
+        </>
     )
 } 

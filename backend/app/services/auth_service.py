@@ -21,18 +21,23 @@ class AuthService:
             print("DEBUG: Attempting to create user in Supabase Auth...")
             
             # Create user in Supabase Auth
-            auth_response = supabase.auth.sign_up({
+            auth_data = {
                 "email": user_data.email,
                 "password": user_data.password,
                 "options": {
                     "data": {
                         "first_name": user_data.first_name,
                         "last_name": user_data.last_name,
-                        "phone": user_data.phone,
-                        "organization_legal_name": user_data.organization_legal_name
+                        "phone": user_data.phone
                     }
                 }
-            })
+            }
+            
+            # Only include organization fields if they have values
+            if user_data.organization_legal_name:
+                auth_data["options"]["data"]["organization_legal_name"] = user_data.organization_legal_name
+            
+            auth_response = supabase.auth.sign_up(auth_data)
             
             print(f"DEBUG: Supabase auth response: {auth_response}")
             
@@ -46,10 +51,14 @@ class AuthService:
                     "last_name": user_data.last_name,
                     "phone": user_data.phone,
                     "email": user_data.email,
-                    "organization_legal_name": user_data.organization_legal_name,
-                    "orginazation_ein_number": user_data.orginazation_ein_number,
                     "created_at": datetime.utcnow().isoformat()
                 }
+                
+                # Only include organization fields if they have values
+                if user_data.organization_legal_name:
+                    account_data["organization_legal_name"] = user_data.organization_legal_name
+                if user_data.orginazation_ein_number:
+                    account_data["orginazation_ein_number"] = user_data.orginazation_ein_number
                 
                 print(f"DEBUG: Inserting account data into database: {account_data}")
                 

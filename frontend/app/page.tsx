@@ -1,5 +1,5 @@
-import SignupPage from '@/components/SignupPage'
+import SigninPage from './signin/page'
 
 export default function Home() {
-    return <SignupPage />
+    return <SigninPage />
 } 

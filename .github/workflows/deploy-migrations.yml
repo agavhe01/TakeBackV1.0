@@ -1,0 +1,60 @@
+name: Deploy Migrations to Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "database/supabase/migrations/**"
+      - "database/supabase/config.toml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: database
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link to production project
+        run: supabase link --project-ref ${{ vars.PRODUCTION_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      - name: Push migrations
+        run: supabase db push --include-all
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+  redeploy-vercel:
+    needs: deploy
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: backend
+            project_id: VERCEL_PROJECT_ID_BACKEND
+          - name: frontend
+            project_id: VERCEL_PROJECT_ID_FRONTEND
+    steps:
+      - name: Trigger production redeployment for ${{ matrix.name }}
+        run: |
+          # Get the latest production deployment
+          LATEST=$(curl -s -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            "https://api.vercel.com/v6/deployments?projectId=${{ vars[matrix.project_id] }}&teamId=${{ vars.VERCEL_ORG_ID }}&target=production&limit=1" \
+            | jq -r '.deployments[0].uid')
+
+          echo "Redeploying ${{ matrix.name }} from deployment: $LATEST"
+
+          # Trigger a redeploy of the latest production deployment
+          curl -s -X POST -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"redeploy\",\"deploymentId\":\"$LATEST\",\"target\":\"production\"}" \
+            "https://api.vercel.com/v13/deployments?teamId=${{ vars.VERCEL_ORG_ID }}" \
+            | jq '{ id: .id, url: .url, readyState: .readyState }'

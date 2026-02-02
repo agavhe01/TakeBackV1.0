@@ -289,13 +289,13 @@ export default function CardsPage() {
 
     return (
         <DashboardLayout>
-            <div className="p-8">
+            <div className="p-4 sm:p-6 lg:p-8">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-4 sm:space-y-0">
                     <h1 className="text-2xl font-bold text-gray-900">Cards</h1>
                     <button
                         onClick={handleCreateCard}
-                        className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                        className="flex items-center justify-center sm:justify-start space-x-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
                     >
                         <Plus className="h-4 w-4" />
                         <span>Add Card</span>
@@ -304,7 +304,7 @@ export default function CardsPage() {
 
                 {/* Tabs */}
                 <div className="border-b border-gray-200 mb-6">
-                    <div className="flex space-x-8">
+                    <div className="flex flex-wrap gap-2 sm:gap-0 sm:space-x-8">
                         {(['all', 'issued', 'frozen', 'cancelled'] as const).map((tab) => (
                             <button
                                 key={tab}

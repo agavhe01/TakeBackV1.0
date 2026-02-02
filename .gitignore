@@ -63,5 +63,8 @@ build/
 
 # Backup files
 *.bak
-*.backup 
+*.backup
 .vercel
+
+# GitHub secrets/variables (local reference only)
+github-secrets/

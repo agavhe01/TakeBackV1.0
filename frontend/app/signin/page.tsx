@@ -34,6 +34,12 @@ export default function SigninPage() {
         console.log('NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL)
         console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
 
+        // Prevent multiple submissions
+        if (isLoading) {
+            console.log('Form submission blocked - already loading')
+            return
+        }
+
         setIsLoading(true)
         setError('')
 
@@ -42,6 +48,7 @@ export default function SigninPage() {
         console.log('Full request URL:', `${apiUrl}/api/auth/login`)
 
         try {
+            console.log('Making fetch request...')
             const response = await fetch(`${apiUrl}/api/auth/login`, {
                 method: 'POST',
                 headers: {
@@ -51,6 +58,8 @@ export default function SigninPage() {
             })
 
             console.log('Response status:', response.status)
+            console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+
             const result = await response.json()
             console.log('Response result:', result)
 
@@ -58,23 +67,44 @@ export default function SigninPage() {
                 console.log('Login successful, storing tokens...')
                 localStorage.setItem('access_token', result.access_token)
                 localStorage.setItem('user', JSON.stringify(result.user))
+                console.log('Tokens stored, redirecting...')
                 handleSigninSuccess()
             } else {
-                console.log('Login failed:', result.detail)
-                setError(result.detail || 'Login failed')
+                // Handle different types of error responses
+                let errorMessage = 'Login failed'
+
+                if (result.detail) {
+                    if (Array.isArray(result.detail)) {
+                        // Handle validation errors array
+                        errorMessage = result.detail.map((error: any) => error.msg || error.message || 'Validation error').join(', ')
+                    } else if (typeof result.detail === 'string') {
+                        errorMessage = result.detail
+                    } else {
+                        errorMessage = 'Login failed - please check your credentials'
+                    }
+                }
+
+                console.log('Login failed:', errorMessage)
+                setError(errorMessage)
             }
         } catch (err) {
             console.error('Signin error:', err)
+            console.error('Error details:', {
+                name: err instanceof Error ? err.name : 'Unknown',
+                message: err instanceof Error ? err.message : String(err),
+                stack: err instanceof Error ? err.stack : 'No stack trace'
+            })
             setError('Network error. Please try again.')
         } finally {
+            console.log('Setting isLoading to false')
             setIsLoading(false)
         }
     }
 
     return (
-        <div className="min-h-screen flex">
+        <div className="min-h-screen flex flex-col lg:flex-row">
             {/* Left Section - Signin Form */}
-            <div className="flex-1 bg-white flex items-center justify-center p-8">
+            <div className="flex-1 bg-white flex items-center justify-center p-4 sm:p-8">
                 <div className="w-full max-w-md">
                     <div className="w-full">
                         {/* Header */}
@@ -88,7 +118,7 @@ export default function SigninPage() {
                             <p className="text-gray-600">
                                 Don't have an account?{' '}
                                 <a
-                                    href="/"
+                                    href="/signup"
                                     className="text-primary-500 hover:text-primary-600 font-medium underline"
                                     onClick={() => console.log('Signup link clicked, navigating to /')}
                                 >
@@ -112,7 +142,7 @@ export default function SigninPage() {
                                 </label>
                                 <input
                                     type="email"
-                                    className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.email ? 'border-red-300' : 'border-gray-300'}`}
+                                    className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.email ? 'border-red-300' : 'border-gray-300'}`}
                                     {...register('email', {
                                         required: 'Email is required',
                                         pattern: {
@@ -139,7 +169,7 @@ export default function SigninPage() {
                                 <div className="relative">
                                     <input
                                         type={showPassword ? 'text' : 'password'}
-                                        className={`block w-full pr-10 py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.password ? 'border-red-300' : 'border-gray-300'}`}
+                                        className={`block w-full pr-10 py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.password ? 'border-red-300' : 'border-gray-300'}`}
                                         {...register('password', {
                                             required: 'Password is required'
                                         })}
@@ -173,12 +203,25 @@ export default function SigninPage() {
                                 Sign in
                             </button>
                         </form>
+
+                        {/* Demo hint */}
+                        <div className="mt-6 bg-green-50 border border-green-200 rounded-md px-4 py-3 text-center">
+                            <p className="text-sm text-green-800 font-medium">
+                                Want to explore? Sign in with
+                            </p>
+                            <p className="text-sm text-green-800 mt-1">
+                                <span className="font-semibold">test@gmail.com</span>
+                            </p>
+                            <p className="text-sm text-green-800 mt-1">
+                                <span className="font-semibold">password123</span>
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Right Section - Data Visualization */}
-            <div className="flex-1 bg-primary-500 flex items-center justify-center relative p-8">
+            {/* Right Section - Data Visualization (Hidden on mobile) */}
+            <div className="hidden lg:flex flex-1 bg-primary-500 items-center justify-center relative p-8">
                 <div className="w-full max-w-4xl">
                     {/* Data Cards Grid */}
                     <div className="grid grid-cols-2 gap-4 mb-8">

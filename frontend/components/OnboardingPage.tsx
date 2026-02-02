@@ -10,8 +10,8 @@ interface User {
     email: string
     first_name: string
     last_name: string
-    organization_legal_name: string
-    orginazation_ein_number: string
+    organization_legal_name?: string
+    orginazation_ein_number?: string
     phone?: string
 }
 
@@ -20,8 +20,8 @@ interface PersonalInfoForm {
     last_name: string
     date_of_birth: string
     phone: string
-    organization_legal_name: string
-    organization_ein: string
+    organization_legal_name?: string
+    organization_ein?: string
     ssn: string
     address: string
     zip_code: string
@@ -158,13 +158,21 @@ export default function OnboardingPage() {
                 }
             } else if (currentStep === 2) {
                 // Step 2: Organization & Address
-                updateData = {
-                    organization_legal_name: formData.organization_legal_name,
-                    orginazation_ein_number: formData.organization_ein,
+                const step2Data: any = {
                     ssn: formData.ssn,
                     address: formData.address,
                     zip_code: formData.zip_code
                 }
+
+                // Only include organization fields if they have values
+                if (formData.organization_legal_name?.trim()) {
+                    step2Data.organization_legal_name = formData.organization_legal_name.trim()
+                }
+                if (formData.organization_ein?.trim()) {
+                    step2Data.orginazation_ein_number = formData.organization_ein.trim()
+                }
+
+                updateData = step2Data
             }
 
             console.log(`Sending step ${currentStep} data:`, updateData)
@@ -259,14 +267,14 @@ export default function OnboardingPage() {
             icon: User,
             content: (
                 <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Legal First Name *
                             </label>
                             <input
                                 type="text"
-                                className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.first_name ? 'border-red-300' : 'border-gray-300'
+                                className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.first_name ? 'border-red-300' : 'border-gray-300'
                                     }`}
                                 {...register('first_name', {
                                     required: 'First name is required'
@@ -283,7 +291,7 @@ export default function OnboardingPage() {
                             </label>
                             <input
                                 type="text"
-                                className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.last_name ? 'border-red-300' : 'border-gray-300'
+                                className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.last_name ? 'border-red-300' : 'border-gray-300'
                                     }`}
                                 {...register('last_name', {
                                     required: 'Last name is required'
@@ -301,7 +309,7 @@ export default function OnboardingPage() {
                         </label>
                         <input
                             type="date"
-                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.date_of_birth ? 'border-red-300' : 'border-gray-300'
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.date_of_birth ? 'border-red-300' : 'border-gray-300'
                                 }`}
                             {...register('date_of_birth', {
                                 required: 'Date of birth is required'
@@ -318,7 +326,7 @@ export default function OnboardingPage() {
                         </label>
                         <input
                             type="tel"
-                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.phone ? 'border-red-300' : 'border-gray-300'
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.phone ? 'border-red-300' : 'border-gray-300'
                                 }`}
                             placeholder="(123) 456-7890"
                             {...register('phone', {
@@ -342,14 +350,20 @@ export default function OnboardingPage() {
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Organization Legal Name *
+                            Organization Legal Name
                         </label>
                         <input
                             type="text"
-                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.organization_legal_name ? 'border-red-300' : 'border-gray-300'
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.organization_legal_name ? 'border-red-300' : 'border-gray-300'
                                 }`}
                             {...register('organization_legal_name', {
-                                required: 'Organization name is required'
+                                // Only validate if a value is provided
+                                validate: (value) => {
+                                    if (value && value.trim().length > 0) {
+                                        return value.trim().length >= 1 || 'Organization name must be at least 1 character'
+                                    }
+                                    return true
+                                }
                             })}
                         />
                         {errors.organization_legal_name && (
@@ -359,18 +373,20 @@ export default function OnboardingPage() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Organization EIN *
+                            Organization EIN
                         </label>
                         <input
                             type="text"
-                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.organization_ein ? 'border-red-300' : 'border-gray-300'
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.organization_ein ? 'border-red-300' : 'border-gray-300'
                                 }`}
                             placeholder="12-3456789"
                             {...register('organization_ein', {
-                                required: 'EIN is required',
-                                pattern: {
-                                    value: /^\d{2}-\d{7}$/,
-                                    message: 'Please enter EIN in format XX-XXXXXXX'
+                                // Only validate if a value is provided
+                                validate: (value) => {
+                                    if (value && value.trim().length > 0) {
+                                        return /^\d{2}-\d{7}$/.test(value) || 'Please enter EIN in format XX-XXXXXXX'
+                                    }
+                                    return true
                                 }
                             })}
                         />
@@ -385,7 +401,7 @@ export default function OnboardingPage() {
                         </label>
                         <input
                             type="text"
-                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.ssn ? 'border-red-300' : 'border-gray-300'
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.ssn ? 'border-red-300' : 'border-gray-300'
                                 }`}
                             placeholder="123-45-6789"
                             {...register('ssn', {
@@ -407,7 +423,7 @@ export default function OnboardingPage() {
                             Full Address (No PO boxes) *
                         </label>
                         <textarea
-                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.address ? 'border-red-300' : 'border-gray-300'
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.address ? 'border-red-300' : 'border-gray-300'
                                 }`}
                             rows={3}
                             placeholder="Enter your complete address including street, city, state, etc."
@@ -426,7 +442,7 @@ export default function OnboardingPage() {
                         </label>
                         <input
                             type="text"
-                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${errors.zip_code ? 'border-red-300' : 'border-gray-300'
+                            className={`block w-full py-2 px-3 border rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white text-gray-900 ${errors.zip_code ? 'border-red-300' : 'border-gray-300'
                                 }`}
                             placeholder="12345"
                             {...register('zip_code', {

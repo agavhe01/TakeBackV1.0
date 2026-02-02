@@ -301,7 +301,7 @@ export default function BudgetModal({ isOpen, onClose, budget, onSave, onDelete,
                                     type="text"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                    className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                                     placeholder="Enter budget name"
                                 />
                             </div>
@@ -329,7 +329,7 @@ export default function BudgetModal({ isOpen, onClose, budget, onSave, onDelete,
                                                     }
                                                 }
                                             }}
-                                            className="block w-full pl-7 py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                            className="block w-full pl-7 py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                                             placeholder="0.00"
                                             step="0.01"
                                             min="0"
@@ -343,7 +343,7 @@ export default function BudgetModal({ isOpen, onClose, budget, onSave, onDelete,
                                     <select
                                         value={formData.period}
                                         onChange={(e) => setFormData({ ...formData, period: e.target.value as any })}
-                                        className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        className="block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                                     >
                                         <option value="weekly">Weekly</option>
                                         <option value="monthly">Monthly</option>

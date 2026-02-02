@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Menu } from 'lucide-react'
 import NavigationSidebar from './NavigationSidebar'
 
 interface DashboardLayoutProps {
@@ -13,6 +14,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         email: string
         initials: string
     } | null>(null)
+    const [isMobileOpen, setIsMobileOpen] = useState(false)
 
     useEffect(() => {
         // Get user data from localStorage
@@ -35,10 +37,33 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         }
     }, [])
 
+    const toggleMobileMenu = () => {
+        setIsMobileOpen(!isMobileOpen)
+    }
+
     return (
         <div className="flex h-screen bg-gray-50">
-            <NavigationSidebar user={user || undefined} />
-            <main className="flex-1 overflow-auto">
+            {/* Mobile Menu Trigger */}
+            <div className="lg:hidden fixed top-4 left-4 z-50">
+                <button
+                    onClick={toggleMobileMenu}
+                    className="p-2 bg-white rounded-md shadow-md border border-gray-200 hover:bg-gray-50 transition-colors"
+                >
+                    <Menu className="h-6 w-6 text-gray-600" />
+                </button>
+            </div>
+
+            {/* Navigation Sidebar */}
+            <NavigationSidebar
+                user={user || undefined}
+                isMobileOpen={isMobileOpen}
+                onMobileToggle={toggleMobileMenu}
+            />
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-auto lg:ml-0">
+                {/* Mobile Header Spacer */}
+                <div className="lg:hidden h-16"></div>
                 {children}
             </main>
         </div>

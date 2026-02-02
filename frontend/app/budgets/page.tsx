@@ -159,13 +159,13 @@ export default function BudgetsPage() {
 
     return (
         <DashboardLayout>
-            <div className="p-8">
+            <div className="p-4 sm:p-6 lg:p-8">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-4 sm:space-y-0">
                     <h1 className="text-2xl font-bold text-gray-900">Budgets</h1>
                     <button
                         onClick={handleCreateBudget}
-                        className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                        className="flex items-center justify-center sm:justify-start space-x-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
                     >
                         <Plus className="h-4 w-4" />
                         <span>Add Budget</span>
@@ -174,7 +174,7 @@ export default function BudgetsPage() {
 
                 {/* Tabs */}
                 <div className="border-b border-gray-200 mb-6">
-                    <div className="flex space-x-8">
+                    <div className="flex flex-wrap gap-2 sm:gap-0 sm:space-x-8">
                         {(['all', 'weekly', 'monthly', 'quarterly'] as const).map((tab) => (
                             <button
                                 key={tab}
@@ -192,7 +192,65 @@ export default function BudgetsPage() {
 
                 {/* Budgets Table */}
                 <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <div className="overflow-x-auto">
+                    {/* Mobile view - cards instead of table */}
+                    <div className="lg:hidden space-y-4 p-4">
+                        {filteredBudgets.map((budget) => (
+                            <div
+                                key={budget.id}
+                                className="bg-gray-50 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors"
+                                onClick={() => handleEditBudget(budget)}
+                            >
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center space-x-3">
+                                        <DollarSign className="h-5 w-5 text-green-600" />
+                                        <div>
+                                            <div className="text-sm font-medium text-gray-900">
+                                                {budget.name}
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                Created {new Date(budget.created_at).toLocaleDateString()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <div className="text-gray-500">Limit</div>
+                                        <div className="font-medium text-gray-900">
+                                            {formatCurrency(budget.limit_amount)}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-gray-500">Period</div>
+                                        <div className="flex items-center space-x-2">
+                                            {getPeriodIcon(budget.period)}
+                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPeriodColor(budget.period)}`}>
+                                                {budget.period.charAt(0).toUpperCase() + budget.period.slice(1)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-gray-500">Receipts</div>
+                                        <div className="flex items-center space-x-2">
+                                            <Receipt className="h-4 w-4 text-orange-600" />
+                                            <span className="text-sm text-gray-900">
+                                                {budget.require_receipts ? 'Required' : 'Optional'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-gray-500">Status</div>
+                                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                            Active
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Desktop view - table */}
+                    <div className="hidden lg:block overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>

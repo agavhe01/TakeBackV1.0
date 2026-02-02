@@ -1,0 +1,11 @@
+# Supabase local
+.branches
+.temp
+
+# Environment
+.env
+.env.local
+
+# Database backups
+*.backup
+*.backup.gz

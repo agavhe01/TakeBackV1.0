@@ -151,7 +151,7 @@ export default function PersonalSettingsModal({ isOpen, onClose, user }: Persona
                                     type="tel"
                                     value={formData.phone}
                                     onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                                     placeholder="Enter phone number"
                                 />
                             </div>
@@ -182,7 +182,7 @@ export default function PersonalSettingsModal({ isOpen, onClose, user }: Persona
                                     value={formData.address}
                                     onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                                     rows={3}
-                                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                                     placeholder="Enter full address"
                                 />
                             </div>
@@ -197,7 +197,7 @@ export default function PersonalSettingsModal({ isOpen, onClose, user }: Persona
                                     type="text"
                                     value={formData.zip_code}
                                     onChange={(e) => setFormData(prev => ({ ...prev, zip_code: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                                     placeholder="Enter ZIP code"
                                 />
                             </div>
@@ -211,7 +211,7 @@ export default function PersonalSettingsModal({ isOpen, onClose, user }: Persona
                                         type="password"
                                         value={formData.ssn}
                                         onChange={(e) => setFormData(prev => ({ ...prev, ssn: e.target.value }))}
-                                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                                         placeholder="Enter SSN"
                                     />
                                 </div>
